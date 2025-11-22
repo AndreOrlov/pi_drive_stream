@@ -71,6 +71,7 @@ class CameraVideoTrack(MediaStreamTrack):
             self._cap = cv2.VideoCapture(camera_index)
             if not self._cap.isOpened():
                 logger.error("Failed to open camera at index %s", camera_index)
+        self._frame_count = 0
 
     async def recv(self) -> VideoFrame:
         pts, time_base = await self.next_timestamp()
@@ -88,6 +89,10 @@ class CameraVideoTrack(MediaStreamTrack):
                     logger.error("Camera read failed, sending black frame")
                     await asyncio.sleep(0.05)
                     frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        self._frame_count += 1
+        if self._frame_count % 30 == 0:
+            logger.info("CameraVideoTrack produced %d frames", self._frame_count)
 
         video_frame = VideoFrame.from_ndarray(frame, format="bgr24")
         video_frame.pts = pts
