@@ -24,6 +24,14 @@ async function startWebRTC() {
       }
     };
     safePlay();
+
+    // Debug: check track state every 2 seconds
+    setInterval(() => {
+      const tracks = videoEl.srcObject?.getVideoTracks();
+      if (tracks && tracks.length > 0) {
+        console.log("videoTrack readyState:", tracks[0].readyState, "muted:", tracks[0].muted, "enabled:", tracks[0].enabled);
+      }
+    }, 2000);
   };
 
   pc.oniceconnectionstatechange = () => {

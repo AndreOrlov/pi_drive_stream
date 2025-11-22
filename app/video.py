@@ -75,6 +75,10 @@ class CameraVideoTrack(MediaStreamTrack):
 
     async def recv(self) -> VideoFrame:
         pts, time_base = await self.next_timestamp()
+        
+        self._frame_count += 1
+        if self._frame_count % 30 == 0:
+            print(f"[CameraVideoTrack] recv() called {self._frame_count} times")
 
         async with self._lock:
             if self._use_picamera2 and self._picam2 is not None:
@@ -90,12 +94,6 @@ class CameraVideoTrack(MediaStreamTrack):
                     frame = np.zeros((480, 640, 3), dtype=np.uint8)
                 else:
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    print("[CameraVideoTrack] opencv frame mean:", float(frame.mean()))
-
-        self._frame_count += 1
-        if self._frame_count % 30 == 0:
-            # Use print so it always appears in uvicorn stdout without extra logger config
-            print(f"[CameraVideoTrack] produced {self._frame_count} frames")
 
         video_frame = VideoFrame.from_ndarray(frame, format="bgr24")
         video_frame.pts = pts
