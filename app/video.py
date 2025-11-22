@@ -127,21 +127,4 @@ async def create_peer_connection() -> RTCPeerConnection:
     print(f"[CameraVideoTrack] track added, readyState: {track.readyState}")
     print(f"[WebRTC] sender: {sender}, track in sender: {sender.track}")
     
-    # Try to prime the track by calling recv once
-    async def prime_track() -> None:
-        try:
-            print("[CameraVideoTrack] Priming track with first frame...")
-            frame = await track.recv()
-            print(f"[CameraVideoTrack] First frame generated: {frame.width}x{frame.height}, pts={frame.pts}")
-        except Exception as e:
-            print(f"[CameraVideoTrack] Error priming track: {e}")
-    
-    # Start priming in background
-    asyncio.create_task(prime_track())
-    
-    # Force track to start producing frames
-    @pc.on("track")
-    def on_track(remote_track):  # type: ignore[misc]
-        print(f"[WebRTC] Remote track received: {remote_track.kind}")
-    
     return pc

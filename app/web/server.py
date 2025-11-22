@@ -38,6 +38,12 @@ async def _run_peer_connection(pc: RTCPeerConnection) -> None:
                 print(f"[WebRTC]   Transceiver {idx} after connect: currentDirection={transceiver.currentDirection}")
                 if transceiver.sender and transceiver.sender.track:
                     print(f"[WebRTC]     Sender track readyState: {transceiver.sender.track.readyState}")
+                    # Check if sender has internal task running
+                    sender = transceiver.sender
+                    if hasattr(sender, '_send_task'):
+                        print(f"[WebRTC]     Sender _send_task: {sender._send_task}")
+                    else:
+                        print("[WebRTC]     Sender has no _send_task attribute")
         elif pc.connectionState in ("failed", "closed"):
             print("[WebRTC] connection closed, cleaning up")
             _peer_connections.discard(pc)
@@ -72,20 +78,20 @@ class Offer(BaseModel):
 @app.post("/webrtc/offer")
 async def webrtc_offer(offer: Offer) -> Dict[str, Any]:
     pc: RTCPeerConnection = await create_peer_connection()
-    
+
     # Store PC to keep it alive
     _peer_connections.add(pc)
-    
+
     # Start background task to monitor connection
     asyncio.create_task(_run_peer_connection(pc))
 
     remote_desc = RTCSessionDescription(sdp=offer.sdp, type=offer.type)
     await pc.setRemoteDescription(remote_desc)
-    
+
     print(f"[WebRTC] Remote description set, senders: {len(pc.getSenders())}")
     for idx, sender in enumerate(pc.getSenders()):
         print(f"[WebRTC]   Sender {idx}: track={sender.track}, transport={sender.transport}")
-    
+
     # Check transceivers
     print(f"[WebRTC] Transceivers: {len(pc.getTransceivers())}")
     for idx, transceiver in enumerate(pc.getTransceivers()):
@@ -93,18 +99,18 @@ async def webrtc_offer(offer: Offer) -> Dict[str, Any]:
 
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
-    
+
     # Give the sender a moment to initialize
     await asyncio.sleep(0.1)
-    
+
     print(f"[WebRTC] Answer created, {len(_peer_connections)} active connections")
     print(f"[WebRTC] Local description type: {pc.localDescription.type}")
-    
+
     # Check again after answer
     print("[WebRTC] After answer:")
     for idx, transceiver in enumerate(pc.getTransceivers()):
         print(f"[WebRTC]   Transceiver {idx}: currentDirection={transceiver.currentDirection}")
-    
+
     # Check if sender has started
     for idx, sender in enumerate(pc.getSenders()):
         if sender.track:
