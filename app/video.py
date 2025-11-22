@@ -75,7 +75,7 @@ class CameraVideoTrack(MediaStreamTrack):
 
     async def recv(self) -> VideoFrame:
         pts, time_base = await self.next_timestamp()
-        
+
         self._frame_count += 1
         if self._frame_count % 30 == 0:
             print(f"[CameraVideoTrack] recv() called {self._frame_count} times")
