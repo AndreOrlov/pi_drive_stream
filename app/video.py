@@ -85,12 +85,12 @@ class CameraVideoTrack(MediaStreamTrack):
         try:
             print(f"[CameraVideoTrack] recv() START, counter={self._counter}")
             self._counter += 1
-            
+
             # Generate our own timestamp since we're wrapped by MediaRelay
             pts = self._timestamp
             time_base = self._time_base
             self._timestamp += 3000  # 30fps at 90kHz = 3000 ticks per frame
-            
+
             print(f"[CameraVideoTrack] timestamp: pts={pts}, time_base={time_base}")
 
             self._frame_count += 1
@@ -101,7 +101,14 @@ class CameraVideoTrack(MediaStreamTrack):
 
             print("[CameraVideoTrack] About to capture frame...")
             async with self._lock:
-                if self._use_picamera2 and self._picam2 is not None:
+                # For first 30 frames (1 second), send a bright test pattern
+                if self._frame_count <= 30:
+                    # Create a bright test pattern: red square
+                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                    frame[:, :] = [255, 0, 0]  # Red in RGB
+                    frame[100:380, 100:540] = [0, 255, 0]  # Green center
+                    print(f"[CameraVideoTrack] TEST PATTERN: shape={frame.shape}, mean={np.mean(frame):.1f}")
+                elif self._use_picamera2 and self._picam2 is not None:
                     # Picamera2 gives us RGB888
                     frame = self._picam2.capture_array()
                     print(f"[CameraVideoTrack] Picamera2 frame: shape={frame.shape}, dtype={frame.dtype}, mean={np.mean(frame):.1f}")
