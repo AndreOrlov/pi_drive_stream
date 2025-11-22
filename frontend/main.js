@@ -58,6 +58,21 @@ async function startWebRTC() {
 
   const answer = await resp.json();
   await pc.setRemoteDescription(answer);
+  
+  console.log("received answer", answer.type);
+  
+  // Debug: check transceivers and receivers
+  const transceivers = pc.getTransceivers();
+  console.log(`Transceivers: ${transceivers.length}`);
+  transceivers.forEach((t, idx) => {
+    console.log(`  Transceiver ${idx}: kind=${t.mid}, direction=${t.direction}, currentDirection=${t.currentDirection}`);
+  });
+  
+  const receivers = pc.getReceivers();
+  console.log(`Receivers: ${receivers.length}`);
+  receivers.forEach((r, idx) => {
+    console.log(`  Receiver ${idx}: track.kind=${r.track?.kind}, track.readyState=${r.track?.readyState}`);
+  });
 }
 
 function startWs() {
