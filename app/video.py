@@ -6,6 +6,7 @@ from typing import Optional
 import cv2
 import numpy as np
 from aiortc import MediaStreamTrack, RTCPeerConnection
+from aiortc.contrib.media import MediaRelay
 from av import VideoFrame
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ except ImportError:  # pragma: no cover - not available on non-RPi dev machines
 
 _picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
 _picam2_lock = threading.Lock()
+_relay: Optional[MediaRelay] = None
 
 
 def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
@@ -121,10 +123,23 @@ class CameraVideoTrack(MediaStreamTrack):
 
 
 async def create_peer_connection() -> RTCPeerConnection:
+    global _relay
+    
+    if _relay is None:
+        _relay = MediaRelay()
+    
     pc = RTCPeerConnection()
-    track = CameraVideoTrack()
-    sender = pc.addTrack(track)
-    print(f"[CameraVideoTrack] track added, readyState: {track.readyState}")
-    print(f"[WebRTC] sender: {sender}, track in sender: {sender.track}")
+    
+    # Create the camera track
+    camera_track = CameraVideoTrack()
+    print(f"[CameraVideoTrack] track created, readyState: {camera_track.readyState}")
+    
+    # Use MediaRelay to properly handle the track
+    relayed_track = _relay.subscribe(camera_track)
+    print(f"[MediaRelay] track relayed")
+    
+    # Add the relayed track to peer connection
+    sender = pc.addTrack(relayed_track)
+    print(f"[WebRTC] relayed track added, sender: {sender}")
     
     return pc
