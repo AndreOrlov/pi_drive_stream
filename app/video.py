@@ -80,9 +80,6 @@ class CameraVideoTrack(MediaStreamTrack):
             if self._use_picamera2 and self._picam2 is not None:
                 frame = self._picam2.capture_array()
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                mean_val = float(frame.mean())
-                print("[CameraVideoTrack] picamera2 frame mean:", mean_val)
-                cv2.imwrite("/tmp/pi_drive_frame.jpg", frame)
             else:
                 ret, frame = (False, None)
                 if self._cap is not None:

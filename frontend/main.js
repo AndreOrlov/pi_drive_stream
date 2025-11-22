@@ -49,7 +49,6 @@ async function startWebRTC() {
   });
 
   const answer = await resp.json();
-  console.log("received answer", answer.type);
   await pc.setRemoteDescription(answer);
 }
 
