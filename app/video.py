@@ -123,8 +123,9 @@ class CameraVideoTrack(MediaStreamTrack):
 async def create_peer_connection() -> RTCPeerConnection:
     pc = RTCPeerConnection()
     track = CameraVideoTrack()
-    pc.addTrack(track)
-    print(f"[CameraVideoTrack] track added to peer connection, readyState: {track.readyState}")
+    sender = pc.addTrack(track)
+    print(f"[CameraVideoTrack] track added, readyState: {track.readyState}")
+    print(f"[WebRTC] sender: {sender}, track in sender: {sender.track}")
     
     # Force track to start producing frames
     @pc.on("track")

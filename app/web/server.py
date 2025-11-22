@@ -74,11 +74,16 @@ async def webrtc_offer(offer: Offer) -> Dict[str, Any]:
 
     remote_desc = RTCSessionDescription(sdp=offer.sdp, type=offer.type)
     await pc.setRemoteDescription(remote_desc)
+    
+    print(f"[WebRTC] Remote description set, senders: {len(pc.getSenders())}")
+    for idx, sender in enumerate(pc.getSenders()):
+        print(f"[WebRTC]   Sender {idx}: track={sender.track}, transport={sender.transport}")
 
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
     
     print(f"[WebRTC] Answer created, {len(_peer_connections)} active connections")
+    print(f"[WebRTC] Local description type: {pc.localDescription.type}")
 
     return {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
 
