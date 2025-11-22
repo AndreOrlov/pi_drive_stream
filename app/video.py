@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import threading
+from typing import Optional
 
 import cv2
 import numpy as np
@@ -17,6 +19,34 @@ except ImportError:  # pragma: no cover - not available on non-RPi dev machines
     PICAMERA2_AVAILABLE = False
 
 
+_picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
+_picam2_lock = threading.Lock()
+
+
+def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
+    """
+    Create and start a single global Picamera2 instance.
+    Subsequent callers reuse the same instance to avoid 'Device or resource busy'.
+    """
+    global _picam2
+
+    if not PICAMERA2_AVAILABLE or Picamera2 is None:  # type: ignore[comparison-overlap]
+        raise RuntimeError("Picamera2 is not available in this environment")
+
+    with _picam2_lock:
+        if _picam2 is None:
+            logger.info("Initializing global Picamera2 instance")
+            cam = Picamera2()  # type: ignore[call-arg]
+            config = cam.create_preview_configuration(
+                main={"format": "RGB888", "size": (640, 480)}
+            )
+            cam.configure(config)
+            cam.start()
+            _picam2 = cam
+
+        return _picam2
+
+
 class CameraVideoTrack(MediaStreamTrack):
     kind = "video"
 
@@ -24,20 +54,20 @@ class CameraVideoTrack(MediaStreamTrack):
         super().__init__()
         self._lock = asyncio.Lock()
 
-        self._use_picamera2 = PICAMERA2_AVAILABLE
-        self._picam2 = None
-        self._cap = None
+        self._use_picamera2 = False
+        self._picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
+        self._cap: Optional[cv2.VideoCapture] = None
 
-        if self._use_picamera2:
-            logger.info("Using Picamera2 for CSI camera")
-            self._picam2 = Picamera2()  # type: ignore[call-arg]
-            config = self._picam2.create_preview_configuration(
-                main={"format": "RGB888", "size": (640, 480)}
-            )
-            self._picam2.configure(config)
-            self._picam2.start()
-        else:
-            logger.info("Picamera2 not available, falling back to OpenCV VideoCapture")
+        if PICAMERA2_AVAILABLE:
+            try:
+                self._picam2 = _ensure_picamera2()
+                self._use_picamera2 = True
+                logger.info("Using global Picamera2 instance for CSI camera")
+            except Exception as exc:  # pragma: no cover - runtime-only on RPi
+                logger.error("Failed to initialize Picamera2, falling back to OpenCV: %s", exc)
+
+        if not self._use_picamera2:
+            logger.info("Using OpenCV VideoCapture for camera index %s", camera_index)
             self._cap = cv2.VideoCapture(camera_index)
             if not self._cap.isOpened():
                 logger.error("Failed to open camera at index %s", camera_index)
