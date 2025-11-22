@@ -1,4 +1,5 @@
 const videoEl = document.getElementById("video");
+let autoplayResolved = false;
 
 let ws;
 let pc;
@@ -6,14 +7,23 @@ let pc;
 async function startWebRTC() {
   pc = new RTCPeerConnection();
 
+  videoEl.muted = true;
+  videoEl.autoplay = true;
+  videoEl.playsInline = true;
+
   pc.ontrack = (event) => {
     const [stream] = event.streams;
     console.log("ontrack: received stream", stream);
     videoEl.srcObject = stream;
-    const playPromise = videoEl.play();
-    if (playPromise !== undefined) {
-      playPromise.catch((err) => console.error("video.play() failed", err));
-    }
+    const safePlay = async () => {
+      try {
+        await videoEl.play();
+        autoplayResolved = true;
+      } catch (err) {
+        console.warn("video.play() blocked, waiting for user interaction", err);
+      }
+    };
+    safePlay();
   };
 
   pc.oniceconnectionstatechange = () => {
@@ -61,6 +71,17 @@ function sendEmergencyStop() {
 }
 
 window.addEventListener("load", () => {
+  videoEl.addEventListener("click", async () => {
+    if (!autoplayResolved) {
+      try {
+        await videoEl.play();
+        autoplayResolved = true;
+      } catch (err) {
+        console.error("Manual play() failed", err);
+      }
+    }
+  });
+
   startWebRTC().catch(console.error);
   startWs();
 
