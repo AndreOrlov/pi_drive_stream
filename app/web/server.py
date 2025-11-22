@@ -32,31 +32,9 @@ async def _run_peer_connection(pc: RTCPeerConnection) -> None:
     async def on_connectionstatechange() -> None:
         print(f"[WebRTC] connectionState: {pc.connectionState}")
         if pc.connectionState == "connected":
-            # Force check transceivers when connected
-            print("[WebRTC] Connection established, checking transceivers...")
+            print("[WebRTC] Connection established!")
             for idx, transceiver in enumerate(pc.getTransceivers()):
-                print(f"[WebRTC]   Transceiver {idx} after connect: currentDirection={transceiver.currentDirection}")
-                if transceiver.sender and transceiver.sender.track:
-                    print(f"[WebRTC]     Sender track readyState: {transceiver.sender.track.readyState}")
-                    sender = transceiver.sender
-                    
-                    # Check transport state
-                    if sender.transport:
-                        print(f"[WebRTC]     Transport state: {sender.transport.state}")
-                    
-                    # Try to manually start the sender if it has _run_rtp method
-                    if hasattr(sender, '_run_rtp') and not hasattr(sender, '_send_task'):
-                        print("[WebRTC]     Attempting to manually start sender...")
-                        try:
-                            # In aiortc, _run_rtp should be started automatically but let's try
-                            task = asyncio.create_task(sender._run_rtp(sender.transport._rtp))
-                            print(f"[WebRTC]     Started _run_rtp task: {task}")
-                        except Exception as e:
-                            print(f"[WebRTC]     Error starting sender: {e}")
-                    elif hasattr(sender, '_send_task'):
-                        print(f"[WebRTC]     Sender _send_task: {sender._send_task}")
-                    else:
-                        print("[WebRTC]     Sender has no _send_task or _run_rtp")
+                print(f"[WebRTC]   Transceiver {idx}: currentDirection={transceiver.currentDirection}")
         elif pc.connectionState in ("failed", "closed"):
             print("[WebRTC] connection closed, cleaning up")
             _peer_connections.discard(pc)

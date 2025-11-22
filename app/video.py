@@ -56,6 +56,7 @@ class CameraVideoTrack(MediaStreamTrack):
         super().__init__()
         print("[CameraVideoTrack] __init__ called")
         self._lock = asyncio.Lock()
+        self._counter = 0
 
         self._use_picamera2 = False
         self._picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
@@ -78,6 +79,9 @@ class CameraVideoTrack(MediaStreamTrack):
         print(f"[CameraVideoTrack] __init__ done, use_picamera2={self._use_picamera2}")
 
     async def recv(self) -> VideoFrame:
+        print(f"[CameraVideoTrack] recv() called! counter={self._counter}")
+        self._counter += 1
+        
         pts, time_base = await self.next_timestamp()
 
         self._frame_count += 1
@@ -124,22 +128,22 @@ class CameraVideoTrack(MediaStreamTrack):
 
 async def create_peer_connection() -> RTCPeerConnection:
     global _relay
-    
+
     if _relay is None:
         _relay = MediaRelay()
-    
+
     pc = RTCPeerConnection()
-    
+
     # Create the camera track
     camera_track = CameraVideoTrack()
     print(f"[CameraVideoTrack] track created, readyState: {camera_track.readyState}")
-    
+
     # Use MediaRelay to properly handle the track
     relayed_track = _relay.subscribe(camera_track)
     print(f"[MediaRelay] track relayed")
-    
+
     # Add the relayed track to peer connection
     sender = pc.addTrack(relayed_track)
     print(f"[WebRTC] relayed track added, sender: {sender}")
-    
+
     return pc
