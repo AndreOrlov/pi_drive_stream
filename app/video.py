@@ -92,7 +92,8 @@ class CameraVideoTrack(MediaStreamTrack):
 
         self._frame_count += 1
         if self._frame_count % 30 == 0:
-            logger.info("CameraVideoTrack produced %d frames", self._frame_count)
+            # Use print so it always appears in uvicorn stdout without extra logger config
+            print(f"[CameraVideoTrack] produced {self._frame_count} frames")
 
         video_frame = VideoFrame.from_ndarray(frame, format="bgr24")
         video_frame.pts = pts

@@ -8,7 +8,20 @@ async function startWebRTC() {
 
   pc.ontrack = (event) => {
     const [stream] = event.streams;
+    console.log("ontrack: received stream", stream);
     videoEl.srcObject = stream;
+    const playPromise = videoEl.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => console.error("video.play() failed", err));
+    }
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    console.log("iceConnectionState:", pc.iceConnectionState);
+  };
+
+  pc.onconnectionstatechange = () => {
+    console.log("connectionState:", pc.connectionState);
   };
 
   pc.addTransceiver("video", { direction: "recvonly" });
@@ -26,6 +39,7 @@ async function startWebRTC() {
   });
 
   const answer = await resp.json();
+  console.log("received answer", answer.type);
   await pc.setRemoteDescription(answer);
 }
 
@@ -56,5 +70,3 @@ window.addEventListener("load", () => {
   document.getElementById("right").onclick = () => sendDrive(0.5, 1.0);
   document.getElementById("stop").onclick = () => sendEmergencyStop();
 });
-
-
