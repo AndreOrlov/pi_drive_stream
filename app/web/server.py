@@ -5,6 +5,7 @@ from typing import Any, Dict
 from aiortc import RTCPeerConnection, RTCSessionDescription
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app import event_bus
@@ -13,8 +14,8 @@ from app.nodes.camera import CameraNode
 from app.nodes.drive import DriveNode
 from app.video import create_peer_connection
 
-
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 drive_node = DriveNode(timeout_s=0.5)
 camera_node = CameraNode()
@@ -85,5 +86,3 @@ async def ws_control(ws: WebSocket) -> None:
     except WebSocketDisconnect:
         stop_cmd = DriveCommand(vx=0.0, steer=0.0, mode=DriveMode.EMERGENCY_STOP)
         await event_bus.publish_drive_cmd(stop_cmd)
-
-
