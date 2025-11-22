@@ -94,6 +94,7 @@ class CameraVideoTrack(MediaStreamTrack):
             if self._use_picamera2 and self._picam2 is not None:
                 # Picamera2 gives us RGB888
                 frame = self._picam2.capture_array()
+                print(f"[CameraVideoTrack] Picamera2 frame: shape={frame.shape}, dtype={frame.dtype}, mean={np.mean(frame):.1f}")
             else:
                 ret, frame = (False, None)
                 if self._cap is not None:
@@ -105,11 +106,13 @@ class CameraVideoTrack(MediaStreamTrack):
                 else:
                     # OpenCV gives us BGR, convert to RGB
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    print(f"[CameraVideoTrack] OpenCV frame: shape={frame.shape}, dtype={frame.dtype}, mean={np.mean(frame):.1f}")
 
         # Always create VideoFrame with RGB format
         video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
         video_frame.pts = pts
         video_frame.time_base = time_base
+        print(f"[CameraVideoTrack] VideoFrame created: {video_frame.width}x{video_frame.height}, pts={pts}, time_base={time_base}")
         return video_frame
 
     def stop(self) -> None:
