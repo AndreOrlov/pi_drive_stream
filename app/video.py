@@ -52,6 +52,7 @@ class CameraVideoTrack(MediaStreamTrack):
 
     def __init__(self, camera_index: int = 0) -> None:
         super().__init__()
+        print("[CameraVideoTrack] __init__ called")
         self._lock = asyncio.Lock()
 
         self._use_picamera2 = False
@@ -62,28 +63,31 @@ class CameraVideoTrack(MediaStreamTrack):
             try:
                 self._picam2 = _ensure_picamera2()
                 self._use_picamera2 = True
-                logger.info("Using global Picamera2 instance for CSI camera")
+                print("[CameraVideoTrack] Using Picamera2")
             except Exception as exc:  # pragma: no cover - runtime-only on RPi
                 logger.error("Failed to initialize Picamera2, falling back to OpenCV: %s", exc)
 
         if not self._use_picamera2:
-            logger.info("Using OpenCV VideoCapture for camera index %s", camera_index)
+            print(f"[CameraVideoTrack] Using OpenCV for camera {camera_index}")
             self._cap = cv2.VideoCapture(camera_index)
             if not self._cap.isOpened():
                 logger.error("Failed to open camera at index %s", camera_index)
         self._frame_count = 0
+        print(f"[CameraVideoTrack] __init__ done, use_picamera2={self._use_picamera2}")
 
     async def recv(self) -> VideoFrame:
         pts, time_base = await self.next_timestamp()
 
         self._frame_count += 1
+        if self._frame_count == 1:
+            print("[CameraVideoTrack] recv() called for the FIRST time!")
         if self._frame_count % 30 == 0:
             print(f"[CameraVideoTrack] recv() called {self._frame_count} times")
 
         async with self._lock:
             if self._use_picamera2 and self._picam2 is not None:
+                # Picamera2 gives us RGB888
                 frame = self._picam2.capture_array()
-                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             else:
                 ret, frame = (False, None)
                 if self._cap is not None:
@@ -93,9 +97,11 @@ class CameraVideoTrack(MediaStreamTrack):
                     await asyncio.sleep(0.05)
                     frame = np.zeros((480, 640, 3), dtype=np.uint8)
                 else:
+                    # OpenCV gives us BGR, convert to RGB
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        video_frame = VideoFrame.from_ndarray(frame, format="bgr24")
+        # Always create VideoFrame with RGB format
+        video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
         video_frame.pts = pts
         video_frame.time_base = time_base
         return video_frame
@@ -118,5 +124,11 @@ async def create_peer_connection() -> RTCPeerConnection:
     pc = RTCPeerConnection()
     track = CameraVideoTrack()
     pc.addTrack(track)
-    print("[CameraVideoTrack] track added to peer connection")
+    print(f"[CameraVideoTrack] track added to peer connection, readyState: {track.readyState}")
+    
+    # Force track to start producing frames
+    @pc.on("track")
+    def on_track(remote_track):  # type: ignore[misc]
+        print(f"[WebRTC] Remote track received: {remote_track.kind}")
+    
     return pc
