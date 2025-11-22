@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Set
 
 from aiortc import RTCPeerConnection, RTCSessionDescription
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -19,6 +19,26 @@ app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 drive_node = DriveNode(timeout_s=0.5)
 camera_node = CameraNode()
+
+# Keep peer connections alive
+_peer_connections: Set[RTCPeerConnection] = set()
+
+
+async def _run_peer_connection(pc: RTCPeerConnection) -> None:
+    """Keep peer connection alive until it closes."""
+    print("[WebRTC] peer connection started")
+    
+    @pc.on("connectionstatechange")
+    async def on_connectionstatechange() -> None:
+        print(f"[WebRTC] connectionState: {pc.connectionState}")
+        if pc.connectionState in ("failed", "closed"):
+            print("[WebRTC] connection closed, cleaning up")
+            _peer_connections.discard(pc)
+            await pc.close()
+    
+    @pc.on("iceconnectionstatechange")
+    async def on_iceconnectionstatechange() -> None:
+        print(f"[WebRTC] iceConnectionState: {pc.iceConnectionState}")
 
 
 @app.on_event("startup")
@@ -45,12 +65,20 @@ class Offer(BaseModel):
 @app.post("/webrtc/offer")
 async def webrtc_offer(offer: Offer) -> Dict[str, Any]:
     pc: RTCPeerConnection = await create_peer_connection()
+    
+    # Store PC to keep it alive
+    _peer_connections.add(pc)
+    
+    # Start background task to monitor connection
+    asyncio.create_task(_run_peer_connection(pc))
 
     remote_desc = RTCSessionDescription(sdp=offer.sdp, type=offer.type)
     await pc.setRemoteDescription(remote_desc)
 
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
+    
+    print(f"[WebRTC] Answer created, {len(_peer_connections)} active connections")
 
     return {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
 
