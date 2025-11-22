@@ -79,41 +79,51 @@ class CameraVideoTrack(MediaStreamTrack):
         print(f"[CameraVideoTrack] __init__ done, use_picamera2={self._use_picamera2}")
 
     async def recv(self) -> VideoFrame:
-        print(f"[CameraVideoTrack] recv() called! counter={self._counter}")
-        self._counter += 1
-        
-        pts, time_base = await self.next_timestamp()
+        try:
+            print(f"[CameraVideoTrack] recv() START, counter={self._counter}")
+            self._counter += 1
+            
+            pts, time_base = await self.next_timestamp()
+            print(f"[CameraVideoTrack] next_timestamp: pts={pts}, time_base={time_base}")
 
-        self._frame_count += 1
-        if self._frame_count == 1:
-            print("[CameraVideoTrack] recv() called for the FIRST time!")
-        if self._frame_count % 30 == 0:
-            print(f"[CameraVideoTrack] recv() called {self._frame_count} times")
+            self._frame_count += 1
+            if self._frame_count == 1:
+                print("[CameraVideoTrack] recv() called for the FIRST time!")
+            if self._frame_count % 30 == 0:
+                print(f"[CameraVideoTrack] recv() called {self._frame_count} times")
 
-        async with self._lock:
-            if self._use_picamera2 and self._picam2 is not None:
-                # Picamera2 gives us RGB888
-                frame = self._picam2.capture_array()
-                print(f"[CameraVideoTrack] Picamera2 frame: shape={frame.shape}, dtype={frame.dtype}, mean={np.mean(frame):.1f}")
-            else:
-                ret, frame = (False, None)
-                if self._cap is not None:
-                    ret, frame = self._cap.read()
-                if not ret or frame is None:
-                    logger.error("Camera read failed, sending black frame")
-                    await asyncio.sleep(0.05)
-                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            print("[CameraVideoTrack] About to capture frame...")
+            async with self._lock:
+                if self._use_picamera2 and self._picam2 is not None:
+                    # Picamera2 gives us RGB888
+                    frame = self._picam2.capture_array()
+                    print(f"[CameraVideoTrack] Picamera2 frame: shape={frame.shape}, dtype={frame.dtype}, mean={np.mean(frame):.1f}")
                 else:
-                    # OpenCV gives us BGR, convert to RGB
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    print(f"[CameraVideoTrack] OpenCV frame: shape={frame.shape}, dtype={frame.dtype}, mean={np.mean(frame):.1f}")
+                    ret, frame = (False, None)
+                    if self._cap is not None:
+                        ret, frame = self._cap.read()
+                    if not ret or frame is None:
+                        logger.error("Camera read failed, sending black frame")
+                        await asyncio.sleep(0.05)
+                        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                    else:
+                        # OpenCV gives us BGR, convert to RGB
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        print(f"[CameraVideoTrack] OpenCV frame: shape={frame.shape}, dtype={frame.dtype}, mean={np.mean(frame):.1f}")
 
-        # Always create VideoFrame with RGB format
-        video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
-        video_frame.pts = pts
-        video_frame.time_base = time_base
-        print(f"[CameraVideoTrack] VideoFrame created: {video_frame.width}x{video_frame.height}, pts={pts}, time_base={time_base}")
-        return video_frame
+            print(f"[CameraVideoTrack] Creating VideoFrame from array...")
+            # Always create VideoFrame with RGB format
+            video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
+            video_frame.pts = pts
+            video_frame.time_base = time_base
+            print(f"[CameraVideoTrack] VideoFrame created: {video_frame.width}x{video_frame.height}, pts={pts}, time_base={time_base}")
+            print(f"[CameraVideoTrack] recv() COMPLETE, returning frame")
+            return video_frame
+        except Exception as e:
+            print(f"[CameraVideoTrack] ERROR in recv(): {e}")
+            import traceback
+            traceback.print_exc()
+            raise
 
     def stop(self) -> None:
         super().stop()
