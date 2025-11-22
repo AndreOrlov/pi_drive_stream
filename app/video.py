@@ -1,4 +1,5 @@
 import asyncio
+import fractions
 import logging
 import threading
 from typing import Optional
@@ -57,6 +58,8 @@ class CameraVideoTrack(MediaStreamTrack):
         print("[CameraVideoTrack] __init__ called")
         self._lock = asyncio.Lock()
         self._counter = 0
+        self._timestamp = 0
+        self._time_base = fractions.Fraction(1, 90000)  # Standard RTP timestamp rate for video
 
         self._use_picamera2 = False
         self._picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
@@ -83,8 +86,12 @@ class CameraVideoTrack(MediaStreamTrack):
             print(f"[CameraVideoTrack] recv() START, counter={self._counter}")
             self._counter += 1
             
-            pts, time_base = await self.next_timestamp()
-            print(f"[CameraVideoTrack] next_timestamp: pts={pts}, time_base={time_base}")
+            # Generate our own timestamp since we're wrapped by MediaRelay
+            pts = self._timestamp
+            time_base = self._time_base
+            self._timestamp += 3000  # 30fps at 90kHz = 3000 ticks per frame
+            
+            print(f"[CameraVideoTrack] timestamp: pts={pts}, time_base={time_base}")
 
             self._frame_count += 1
             if self._frame_count == 1:
