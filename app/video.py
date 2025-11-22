@@ -118,4 +118,5 @@ async def create_peer_connection() -> RTCPeerConnection:
     pc = RTCPeerConnection()
     track = CameraVideoTrack()
     pc.addTrack(track)
+    print("[CameraVideoTrack] track added to peer connection")
     return pc
