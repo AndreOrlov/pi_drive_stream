@@ -81,6 +81,7 @@ class CameraVideoTrack(MediaStreamTrack):
                 frame = self._picam2.capture_array()
                 # Picamera2 returns RGB, convert to BGR for aiortc
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                print("[CameraVideoTrack] picamera2 frame mean:", float(frame.mean()))
             else:
                 ret, frame = (False, None)
                 if self._cap is not None:
@@ -89,6 +90,9 @@ class CameraVideoTrack(MediaStreamTrack):
                     logger.error("Camera read failed, sending black frame")
                     await asyncio.sleep(0.05)
                     frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                else:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    print("[CameraVideoTrack] opencv frame mean:", float(frame.mean()))
 
         self._frame_count += 1
         if self._frame_count % 30 == 0:
