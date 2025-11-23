@@ -26,35 +26,16 @@ _peer_connections: Set[RTCPeerConnection] = set()
 
 async def _run_peer_connection(pc: RTCPeerConnection) -> None:
     """Keep peer connection alive until it closes."""
-    print("[WebRTC] peer connection started")
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange() -> None:
-        print(f"[WebRTC] connectionState: {pc.connectionState}")
-        if pc.connectionState == "connected":
-            print("[WebRTC] Connection established!")
-            for idx, transceiver in enumerate(pc.getTransceivers()):
-                print(f"[WebRTC]   Transceiver {idx}: currentDirection={transceiver.currentDirection}")
-                # Check if sender is actually sending
-                if transceiver.sender and transceiver.sender.transport:
-                    transport = transceiver.sender.transport
-                    print(f"[WebRTC]   Transport state: {transport.state}")
-        elif pc.connectionState == "failed":
-            print("[WebRTC] CONNECTION FAILED!")
-            # Try to get error details
-            for idx, transceiver in enumerate(pc.getTransceivers()):
-                if transceiver.sender:
-                    print(f"[WebRTC]   Transceiver {idx} sender state: {transceiver.sender}")
-        elif pc.connectionState == "closed":
-            print("[WebRTC] connection closed, cleaning up")
+        if pc.connectionState == "closed":
             _peer_connections.discard(pc)
             await pc.close()
 
     @pc.on("iceconnectionstatechange")
     async def on_iceconnectionstatechange() -> None:
-        print(f"[WebRTC] iceConnectionState: {pc.iceConnectionState}")
-        if pc.iceConnectionState == "failed":
-            print("[WebRTC] ICE CONNECTION FAILED!")
+        pass  # Connection state monitoring without logging
 
 
 @app.on_event("startup")
@@ -93,8 +74,6 @@ async def webrtc_offer(offer: Offer) -> Dict[str, Any]:
 
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
-    
-    print(f"[WebRTC] Answer created, {len(_peer_connections)} active connections")
 
     return {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
 
