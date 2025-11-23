@@ -41,9 +41,8 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
         if _picam2 is None:
             logger.info("Initializing global Picamera2 instance")
             cam = Picamera2()  # type: ignore[call-arg]
-            # Use lower resolution for better encoding performance
             config = cam.create_preview_configuration(
-                main={"format": "RGB888", "size": (320, 240)}
+                main={"format": "RGB888", "size": (640, 480)}
             )
             cam.configure(config)
             cam.start()
@@ -87,12 +86,12 @@ class CameraVideoTrack(MediaStreamTrack):
             # Initialize start time on first frame
             if self._start_time is None:
                 self._start_time = time.time()
-            
+
             # Calculate timestamp based on elapsed time
             elapsed = time.time() - self._start_time
             pts = int(elapsed * 90000)  # 90kHz clock
             time_base = fractions.Fraction(1, 90000)
-            
+
             self._frame_count += 1
             if self._frame_count == 1:
                 print("[CameraVideoTrack] First frame!")
@@ -102,30 +101,23 @@ class CameraVideoTrack(MediaStreamTrack):
             # Capture frame
             if self._use_picamera2 and self._picam2 is not None:
                 frame = self._picam2.capture_array()
-                # Add test pattern for first second
-                if self._frame_count <= 15:
-                    frame[:, :] = [255, 0, 0]  # Red
-                    frame[60:180, 60:260] = [0, 255, 0]  # Green center
-                    if self._frame_count == 1:
-                        print(f"[CameraVideoTrack] Sending TEST PATTERN (mean={np.mean(frame):.1f})")
             else:
                 ret, frame = (False, None)
                 if self._cap is not None:
                     ret, frame = self._cap.read()
                 if not ret or frame is None:
-                    frame = np.zeros((240, 320, 3), dtype=np.uint8)
+                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
                 else:
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frame = cv2.resize(frame, (320, 240))
 
             # Create VideoFrame
             video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
             video_frame.pts = pts
             video_frame.time_base = time_base
-            
+
             # Control frame rate
-            await asyncio.sleep(1/15)  # 15 FPS
-            
+            await asyncio.sleep(1/30)  # 30 FPS
+
             return video_frame
         except Exception as e:
             print(f"[CameraVideoTrack] ERROR: {e}")
