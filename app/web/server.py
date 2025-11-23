@@ -27,7 +27,7 @@ _peer_connections: Set[RTCPeerConnection] = set()
 async def _run_peer_connection(pc: RTCPeerConnection) -> None:
     """Keep peer connection alive until it closes."""
     print("[WebRTC] peer connection started")
-    
+
     @pc.on("connectionstatechange")
     async def on_connectionstatechange() -> None:
         print(f"[WebRTC] connectionState: {pc.connectionState}")
@@ -49,7 +49,7 @@ async def _run_peer_connection(pc: RTCPeerConnection) -> None:
             print("[WebRTC] connection closed, cleaning up")
             _peer_connections.discard(pc)
             await pc.close()
-    
+
     @pc.on("iceconnectionstatechange")
     async def on_iceconnectionstatechange() -> None:
         print(f"[WebRTC] iceConnectionState: {pc.iceConnectionState}")
@@ -81,50 +81,20 @@ class Offer(BaseModel):
 @app.post("/webrtc/offer")
 async def webrtc_offer(offer: Offer) -> Dict[str, Any]:
     pc: RTCPeerConnection = await create_peer_connection()
-
+    
     # Store PC to keep it alive
     _peer_connections.add(pc)
-
+    
     # Start background task to monitor connection
     asyncio.create_task(_run_peer_connection(pc))
 
     remote_desc = RTCSessionDescription(sdp=offer.sdp, type=offer.type)
     await pc.setRemoteDescription(remote_desc)
 
-    print(f"[WebRTC] Remote description set, senders: {len(pc.getSenders())}")
-    for idx, sender in enumerate(pc.getSenders()):
-        print(f"[WebRTC]   Sender {idx}: track={sender.track}, transport={sender.transport}")
-
-    # Check transceivers
-    print(f"[WebRTC] Transceivers: {len(pc.getTransceivers())}")
-    for idx, transceiver in enumerate(pc.getTransceivers()):
-        print(f"[WebRTC]   Transceiver {idx}: kind={transceiver.kind}, direction={transceiver.direction}, currentDirection={transceiver.currentDirection}")
-
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
-
-    # Give the sender a moment to initialize
-    await asyncio.sleep(0.1)
-
+    
     print(f"[WebRTC] Answer created, {len(_peer_connections)} active connections")
-    print(f"[WebRTC] Local description type: {pc.localDescription.type}")
-
-    # Log SDP to see which codec is being used
-    if pc.localDescription and pc.localDescription.sdp:
-        sdp_lines = pc.localDescription.sdp.split('\n')
-        for line in sdp_lines:
-            if 'a=rtpmap' in line or 'a=fmtp' in line:
-                print(f"[WebRTC] SDP: {line.strip()}")
-
-    # Check again after answer
-    print("[WebRTC] After answer:")
-    for idx, transceiver in enumerate(pc.getTransceivers()):
-        print(f"[WebRTC]   Transceiver {idx}: currentDirection={transceiver.currentDirection}")
-
-    # Check if sender has started
-    for idx, sender in enumerate(pc.getSenders()):
-        if sender.track:
-            print(f"[WebRTC]   Sender {idx} track: kind={sender.track.kind}, readyState={sender.track.readyState}")
 
     return {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
 

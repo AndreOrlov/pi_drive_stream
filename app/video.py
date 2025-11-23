@@ -2,6 +2,7 @@ import asyncio
 import fractions
 import logging
 import threading
+import time
 from typing import Optional
 
 import cv2
@@ -59,9 +60,7 @@ class CameraVideoTrack(MediaStreamTrack):
         print("[CameraVideoTrack] __init__ called")
         self._lock = asyncio.Lock()
         self._counter = 0
-        self._timestamp = 0
-        self._time_base = fractions.Fraction(1, 90000)  # Standard RTP timestamp rate for video
-        self._frame_interval = 6000  # 15fps at 90kHz = 6000 ticks per frame (was 3000 for 30fps)
+        self._start_time = None
 
         self._use_picamera2 = False
         self._picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
@@ -85,47 +84,53 @@ class CameraVideoTrack(MediaStreamTrack):
 
     async def recv(self) -> VideoFrame:
         try:
-            self._counter += 1
+            # Initialize start time on first frame
+            if self._start_time is None:
+                self._start_time = time.time()
             
-            # Use next_timestamp since we're directly attached to peer connection
-            pts, time_base = await self.next_timestamp()
-
+            # Calculate timestamp based on elapsed time
+            elapsed = time.time() - self._start_time
+            pts = int(elapsed * 90000)  # 90kHz clock
+            time_base = fractions.Fraction(1, 90000)
+            
             self._frame_count += 1
             if self._frame_count == 1:
                 print("[CameraVideoTrack] First frame!")
             if self._frame_count % 15 == 0:
                 print(f"[CameraVideoTrack] {self._frame_count} frames sent")
 
-            async with self._lock:
-                # For first 15 frames (~1 second at 15fps), send a bright test pattern
+            # Capture frame
+            if self._use_picamera2 and self._picam2 is not None:
+                frame = self._picam2.capture_array()
+                # Add test pattern for first second
                 if self._frame_count <= 15:
-                    # Create a bright test pattern at 320x240
-                    frame = np.zeros((240, 320, 3), dtype=np.uint8)
-                    frame[:, :] = [255, 0, 0]  # Red in RGB
+                    frame[:, :] = [255, 0, 0]  # Red
                     frame[60:180, 60:260] = [0, 255, 0]  # Green center
                     if self._frame_count == 1:
-                        print(f"[CameraVideoTrack] Sending TEST PATTERN 320x240 @ 15fps (mean={np.mean(frame):.1f})")
-                elif self._use_picamera2 and self._picam2 is not None:
-                    frame = self._picam2.capture_array()
+                        print(f"[CameraVideoTrack] Sending TEST PATTERN (mean={np.mean(frame):.1f})")
+            else:
+                ret, frame = (False, None)
+                if self._cap is not None:
+                    ret, frame = self._cap.read()
+                if not ret or frame is None:
+                    frame = np.zeros((240, 320, 3), dtype=np.uint8)
                 else:
-                    ret, frame = (False, None)
-                    if self._cap is not None:
-                        ret, frame = self._cap.read()
-                    if not ret or frame is None:
-                        await asyncio.sleep(0.067)  # ~15fps
-                        frame = np.zeros((240, 320, 3), dtype=np.uint8)
-                    else:
-                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                        # Resize to 320x240 for better performance
-                        frame = cv2.resize(frame, (320, 240))
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    frame = cv2.resize(frame, (320, 240))
 
-            # Always create VideoFrame with RGB format
+            # Create VideoFrame
             video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
             video_frame.pts = pts
             video_frame.time_base = time_base
+            
+            # Control frame rate
+            await asyncio.sleep(1/15)  # 15 FPS
+            
             return video_frame
         except Exception as e:
             print(f"[CameraVideoTrack] ERROR: {e}")
+            import traceback
+            traceback.print_exc()
             raise
 
     def stop(self) -> None:
@@ -144,13 +149,13 @@ class CameraVideoTrack(MediaStreamTrack):
 
 async def create_peer_connection() -> RTCPeerConnection:
     pc = RTCPeerConnection()
-    
+
     # Create the camera track directly without MediaRelay
     camera_track = CameraVideoTrack()
     print(f"[CameraVideoTrack] track created, readyState: {camera_track.readyState}")
-    
+
     # Add the track directly to peer connection
     sender = pc.addTrack(camera_track)
     print(f"[WebRTC] track added directly, sender: {sender}")
-    
+
     return pc

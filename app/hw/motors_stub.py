@@ -11,5 +11,3 @@ async def apply_drive_command(cmd: DriveCommand) -> None:
 async def apply_camera_command(cmd: CameraCommand) -> None:
     # TODO: replace with real servo control for camera pan/tilt
     print(f"[CAMERA] pan={cmd.pan:.2f}, tilt={cmd.tilt:.2f}")
-
-
