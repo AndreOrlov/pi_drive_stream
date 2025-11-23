@@ -86,16 +86,14 @@ class CameraVideoTrack(MediaStreamTrack):
     async def recv(self) -> VideoFrame:
         try:
             self._counter += 1
-
-            # Generate our own timestamp since we're wrapped by MediaRelay
-            pts = self._timestamp
-            time_base = self._time_base
-            self._timestamp += self._frame_interval  # Use configured frame interval
+            
+            # Use next_timestamp since we're directly attached to peer connection
+            pts, time_base = await self.next_timestamp()
 
             self._frame_count += 1
             if self._frame_count == 1:
                 print("[CameraVideoTrack] First frame!")
-            if self._frame_count % 30 == 0:
+            if self._frame_count % 15 == 0:
                 print(f"[CameraVideoTrack] {self._frame_count} frames sent")
 
             async with self._lock:
@@ -114,7 +112,7 @@ class CameraVideoTrack(MediaStreamTrack):
                     if self._cap is not None:
                         ret, frame = self._cap.read()
                     if not ret or frame is None:
-                        await asyncio.sleep(0.05)
+                        await asyncio.sleep(0.067)  # ~15fps
                         frame = np.zeros((240, 320, 3), dtype=np.uint8)
                     else:
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -145,23 +143,14 @@ class CameraVideoTrack(MediaStreamTrack):
 
 
 async def create_peer_connection() -> RTCPeerConnection:
-    global _relay
-
-    if _relay is None:
-        _relay = MediaRelay()
-
     pc = RTCPeerConnection()
-
-    # Create the camera track
+    
+    # Create the camera track directly without MediaRelay
     camera_track = CameraVideoTrack()
     print(f"[CameraVideoTrack] track created, readyState: {camera_track.readyState}")
-
-    # Use MediaRelay to properly handle the track
-    relayed_track = _relay.subscribe(camera_track)
-    print(f"[MediaRelay] track relayed")
-
-    # Add the relayed track to peer connection
-    sender = pc.addTrack(relayed_track)
-    print(f"[WebRTC] relayed track added, sender: {sender}")
-
+    
+    # Add the track directly to peer connection
+    sender = pc.addTrack(camera_track)
+    print(f"[WebRTC] track added directly, sender: {sender}")
+    
     return pc
