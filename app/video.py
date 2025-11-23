@@ -82,46 +82,38 @@ class CameraVideoTrack(MediaStreamTrack):
             # Initialize start time on first frame
             if self._start_time is None:
                 self._start_time = time.time()
-            
+
             # Calculate timestamp based on elapsed time
             elapsed = time.time() - self._start_time
             pts = int(elapsed * 90000)  # 90kHz clock
             time_base = fractions.Fraction(1, 90000)
-            
+
             self._frame_count += 1
 
             # Capture frame
             if self._use_picamera2 and self._picam2 is not None:
                 frame = self._picam2.capture_array()
-                # Add test pattern for first second
-                if self._frame_count <= 15:
-                    frame[:, :] = [255, 0, 0]  # Red
-                    frame[60:180, 60:260] = [0, 255, 0]  # Green center
-                    if self._frame_count == 1:
-                        print(f"[CameraVideoTrack] Sending TEST PATTERN (mean={np.mean(frame):.1f})")
             else:
                 ret, frame = (False, None)
                 if self._cap is not None:
                     ret, frame = self._cap.read()
                 if not ret or frame is None:
-                    frame = np.zeros((240, 320, 3), dtype=np.uint8)
+                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
                 else:
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frame = cv2.resize(frame, (320, 240))
+                    frame = cv2.resize(frame, (640, 480))
 
             # Create VideoFrame
             video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
             video_frame.pts = pts
             video_frame.time_base = time_base
-            
+
             # Control frame rate
-            await asyncio.sleep(1/15)  # 15 FPS
-            
+            await asyncio.sleep(1/30)  # 30 FPS
+
             return video_frame
         except Exception as e:
-            print(f"[CameraVideoTrack] ERROR: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error in CameraVideoTrack.recv: {e}")
             raise
 
     def stop(self) -> None:
@@ -141,17 +133,17 @@ class CameraVideoTrack(MediaStreamTrack):
 async def create_peer_connection() -> RTCPeerConnection:
     """Create RTCPeerConnection with camera video track"""
     global _relay
-    
+
     if _relay is None:
         _relay = MediaRelay()
-    
+
     pc = RTCPeerConnection()
-    
+
     # Create camera track
     camera_track = CameraVideoTrack()
-    
+
     # Use MediaRelay to handle the track
     video_track = _relay.subscribe(camera_track)
     pc.addTrack(video_track)
-    
+
     return pc
