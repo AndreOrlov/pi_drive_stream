@@ -13,7 +13,6 @@ async function startWebRTC() {
 
   pc.ontrack = (event) => {
     const [stream] = event.streams;
-    console.log("ontrack: received stream", stream);
     videoEl.srcObject = stream;
     const safePlay = async () => {
       try {
@@ -24,22 +23,14 @@ async function startWebRTC() {
       }
     };
     safePlay();
-
-    // Debug: check track state every 2 seconds
-    setInterval(() => {
-      const tracks = videoEl.srcObject?.getVideoTracks();
-      if (tracks && tracks.length > 0) {
-        console.log("videoTrack readyState:", tracks[0].readyState, "muted:", tracks[0].muted, "enabled:", tracks[0].enabled);
-      }
-    }, 2000);
   };
 
   pc.oniceconnectionstatechange = () => {
-    console.log("iceConnectionState:", pc.iceConnectionState);
+    // Monitor connection state silently
   };
 
   pc.onconnectionstatechange = () => {
-    console.log("connectionState:", pc.connectionState);
+    // Monitor connection state silently
   };
 
   pc.addTransceiver("video", { direction: "recvonly" });
@@ -58,37 +49,10 @@ async function startWebRTC() {
 
   const answer = await resp.json();
   await pc.setRemoteDescription(answer);
-
-  console.log("received answer", answer.type);
-
-  // Debug: check transceivers and receivers
-  const transceivers = pc.getTransceivers();
-  console.log(`Transceivers: ${transceivers.length}`);
-  transceivers.forEach((t, idx) => {
-    console.log(`  Transceiver ${idx}: kind=${t.mid}, direction=${t.direction}, currentDirection=${t.currentDirection}`);
-  });
-
-  const receivers = pc.getReceivers();
-  console.log(`Receivers: ${receivers.length}`);
-  receivers.forEach((r, idx) => {
-    console.log(`  Receiver ${idx}: track.kind=${r.track?.kind}, track.readyState=${r.track?.readyState}`);
-  });
-
-  // Check video element stats
-  setTimeout(() => {
-    console.log("Video element stats:");
-    console.log("  videoWidth:", videoEl.videoWidth);
-    console.log("  videoHeight:", videoEl.videoHeight);
-    console.log("  readyState:", videoEl.readyState);
-    console.log("  networkState:", videoEl.networkState);
-    console.log("  paused:", videoEl.paused);
-  }, 2000);
 }
 
 function startWs() {
   ws = new WebSocket(`ws://${window.location.host}/ws/control`);
-  ws.onopen = () => console.log("WS open");
-  ws.onclose = () => console.log("WS closed");
   ws.onerror = (e) => console.error("WS error", e);
 }
 

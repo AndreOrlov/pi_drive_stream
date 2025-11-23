@@ -56,7 +56,6 @@ class CameraVideoTrack(MediaStreamTrack):
 
     def __init__(self, camera_index: int = 0) -> None:
         super().__init__()
-        print("[CameraVideoTrack] __init__ called")
         self._lock = asyncio.Lock()
         self._counter = 0
         self._start_time = None
@@ -69,17 +68,14 @@ class CameraVideoTrack(MediaStreamTrack):
             try:
                 self._picam2 = _ensure_picamera2()
                 self._use_picamera2 = True
-                print("[CameraVideoTrack] Using Picamera2")
             except Exception as exc:  # pragma: no cover - runtime-only on RPi
                 logger.error("Failed to initialize Picamera2, falling back to OpenCV: %s", exc)
 
         if not self._use_picamera2:
-            print(f"[CameraVideoTrack] Using OpenCV for camera {camera_index}")
             self._cap = cv2.VideoCapture(camera_index)
             if not self._cap.isOpened():
                 logger.error("Failed to open camera at index %s", camera_index)
         self._frame_count = 0
-        print(f"[CameraVideoTrack] __init__ done, use_picamera2={self._use_picamera2}")
 
     async def recv(self) -> VideoFrame:
         try:
@@ -93,10 +89,6 @@ class CameraVideoTrack(MediaStreamTrack):
             time_base = fractions.Fraction(1, 90000)
 
             self._frame_count += 1
-            if self._frame_count == 1:
-                print("[CameraVideoTrack] First frame!")
-            if self._frame_count % 15 == 0:
-                print(f"[CameraVideoTrack] {self._frame_count} frames sent")
 
             # Capture frame
             if self._use_picamera2 and self._picam2 is not None:
@@ -109,6 +101,7 @@ class CameraVideoTrack(MediaStreamTrack):
                     frame = np.zeros((480, 640, 3), dtype=np.uint8)
                 else:
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    frame = cv2.resize(frame, (640, 480))
 
             # Create VideoFrame
             video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
@@ -120,9 +113,7 @@ class CameraVideoTrack(MediaStreamTrack):
 
             return video_frame
         except Exception as e:
-            print(f"[CameraVideoTrack] ERROR: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error in CameraVideoTrack.recv: {e}")
             raise
 
     def stop(self) -> None:
@@ -140,14 +131,19 @@ class CameraVideoTrack(MediaStreamTrack):
 
 
 async def create_peer_connection() -> RTCPeerConnection:
+    """Create RTCPeerConnection with camera video track"""
+    global _relay
+
+    if _relay is None:
+        _relay = MediaRelay()
+
     pc = RTCPeerConnection()
 
-    # Create the camera track directly without MediaRelay
+    # Create camera track
     camera_track = CameraVideoTrack()
-    print(f"[CameraVideoTrack] track created, readyState: {camera_track.readyState}")
 
-    # Add the track directly to peer connection
-    sender = pc.addTrack(camera_track)
-    print(f"[WebRTC] track added directly, sender: {sender}")
+    # Use MediaRelay to handle the track
+    video_track = _relay.subscribe(camera_track)
+    pc.addTrack(video_track)
 
     return pc
