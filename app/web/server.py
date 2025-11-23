@@ -62,10 +62,10 @@ class Offer(BaseModel):
 @app.post("/webrtc/offer")
 async def webrtc_offer(offer: Offer) -> Dict[str, Any]:
     pc: RTCPeerConnection = await create_peer_connection()
-    
+
     # Store PC to keep it alive
     _peer_connections.add(pc)
-    
+
     # Start background task to monitor connection
     asyncio.create_task(_run_peer_connection(pc))
 
