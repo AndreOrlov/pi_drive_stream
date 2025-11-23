@@ -73,6 +73,16 @@ async function startWebRTC() {
   receivers.forEach((r, idx) => {
     console.log(`  Receiver ${idx}: track.kind=${r.track?.kind}, track.readyState=${r.track?.readyState}`);
   });
+  
+  // Check video element stats
+  setTimeout(() => {
+    console.log("Video element stats:");
+    console.log("  videoWidth:", videoEl.videoWidth);
+    console.log("  videoHeight:", videoEl.videoHeight);
+    console.log("  readyState:", videoEl.readyState);
+    console.log("  networkState:", videoEl.networkState);
+    console.log("  paused:", videoEl.paused);
+  }, 2000);
 }
 
 function startWs() {
