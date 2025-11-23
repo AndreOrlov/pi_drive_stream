@@ -40,8 +40,9 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
         if _picam2 is None:
             logger.info("Initializing global Picamera2 instance")
             cam = Picamera2()  # type: ignore[call-arg]
+            # Use lower resolution for better encoding performance
             config = cam.create_preview_configuration(
-                main={"format": "RGB888", "size": (640, 480)}
+                main={"format": "RGB888", "size": (320, 240)}
             )
             cam.configure(config)
             cam.start()
@@ -60,6 +61,7 @@ class CameraVideoTrack(MediaStreamTrack):
         self._counter = 0
         self._timestamp = 0
         self._time_base = fractions.Fraction(1, 90000)  # Standard RTP timestamp rate for video
+        self._frame_interval = 6000  # 15fps at 90kHz = 6000 ticks per frame (was 3000 for 30fps)
 
         self._use_picamera2 = False
         self._picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
@@ -84,11 +86,11 @@ class CameraVideoTrack(MediaStreamTrack):
     async def recv(self) -> VideoFrame:
         try:
             self._counter += 1
-            
+
             # Generate our own timestamp since we're wrapped by MediaRelay
             pts = self._timestamp
             time_base = self._time_base
-            self._timestamp += 3000  # 30fps at 90kHz = 3000 ticks per frame
+            self._timestamp += self._frame_interval  # Use configured frame interval
 
             self._frame_count += 1
             if self._frame_count == 1:
@@ -97,14 +99,14 @@ class CameraVideoTrack(MediaStreamTrack):
                 print(f"[CameraVideoTrack] {self._frame_count} frames sent")
 
             async with self._lock:
-                # For first 30 frames (1 second), send a bright test pattern
-                if self._frame_count <= 30:
-                    # Create a bright test pattern: red square
-                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                # For first 15 frames (~1 second at 15fps), send a bright test pattern
+                if self._frame_count <= 15:
+                    # Create a bright test pattern at 320x240
+                    frame = np.zeros((240, 320, 3), dtype=np.uint8)
                     frame[:, :] = [255, 0, 0]  # Red in RGB
-                    frame[100:380, 100:540] = [0, 255, 0]  # Green center
+                    frame[60:180, 60:260] = [0, 255, 0]  # Green center
                     if self._frame_count == 1:
-                        print(f"[CameraVideoTrack] Sending TEST PATTERN (mean={np.mean(frame):.1f})")
+                        print(f"[CameraVideoTrack] Sending TEST PATTERN 320x240 @ 15fps (mean={np.mean(frame):.1f})")
                 elif self._use_picamera2 and self._picam2 is not None:
                     frame = self._picam2.capture_array()
                 else:
@@ -113,9 +115,11 @@ class CameraVideoTrack(MediaStreamTrack):
                         ret, frame = self._cap.read()
                     if not ret or frame is None:
                         await asyncio.sleep(0.05)
-                        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                        frame = np.zeros((240, 320, 3), dtype=np.uint8)
                     else:
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        # Resize to 320x240 for better performance
+                        frame = cv2.resize(frame, (320, 240))
 
             # Always create VideoFrame with RGB format
             video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
