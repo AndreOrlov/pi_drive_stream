@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pi Drive Stream</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon-camera.svg" />
   <!-- Tailwind CSS CDN - для разработки. Для production см. https://tailwindcss.com/docs/installation -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -16,16 +17,16 @@
 
     <!-- Main Layout: Вертикальный на мобильных, Горизонтальный на десктопах -->
     <div class="flex flex-col lg:flex-row gap-4 lg:gap-6">
-      
+
       <!-- Left Column: Video + Drive Controls (на мобильных сверху) -->
       <div class="flex-1 space-y-4 lg:space-y-6">
         <!-- Video Container -->
         <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-          <video 
-            id="video" 
-            autoplay 
-            muted 
-            playsinline 
+          <video
+            id="video"
+            autoplay
+            muted
+            playsinline
             class="w-full aspect-video bg-black"
           ></video>
         </div>
@@ -34,32 +35,32 @@
         <div class="bg-white rounded-2xl shadow-lg p-4 lg:p-6">
           <h2 class="text-lg lg:text-xl font-semibold text-gray-700 mb-3 lg:mb-4">Drive Control</h2>
           <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 lg:gap-3">
-            <button 
-              id="forward" 
+            <button
+              id="forward"
               class="px-4 py-3 lg:px-6 lg:py-3 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-150 active:scale-95 text-sm lg:text-base"
             >
               ▲ Forward
             </button>
-            <button 
-              id="backward" 
+            <button
+              id="backward"
               class="px-4 py-3 lg:px-6 lg:py-3 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-150 active:scale-95 text-sm lg:text-base"
             >
               ▼ Backward
             </button>
-            <button 
-              id="left" 
+            <button
+              id="left"
               class="px-4 py-3 lg:px-6 lg:py-3 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-150 active:scale-95 text-sm lg:text-base"
             >
               ◀ Left
             </button>
-            <button 
-              id="right" 
+            <button
+              id="right"
               class="px-4 py-3 lg:px-6 lg:py-3 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all duration-150 active:scale-95 text-sm lg:text-base"
             >
               ▶ Right
             </button>
-            <button 
-              id="stop" 
+            <button
+              id="stop"
               class="col-span-2 sm:col-span-1 px-6 py-3 lg:px-8 lg:py-3 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-bold rounded-lg shadow-md transition-all duration-150 active:scale-95 text-sm lg:text-base"
             >
               ⬛ STOP
@@ -72,41 +73,41 @@
       <div class="lg:w-80 xl:w-96">
         <div class="bg-white rounded-2xl shadow-lg p-4 lg:p-6 lg:sticky lg:top-8">
           <h2 class="text-lg lg:text-xl font-semibold text-gray-700 mb-3 lg:mb-4">Camera Control</h2>
-          
+
           <!-- D-Pad Grid -->
           <div class="flex justify-center mb-4">
             <div class="grid grid-cols-3 gap-2 w-fit">
               <div></div>
-              <button 
-                id="cam-up" 
+              <button
+                id="cam-up"
                 class="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 active:from-gray-300 active:to-gray-400 border-2 border-gray-300 hover:border-gray-400 rounded-lg text-xl sm:text-2xl lg:text-3xl font-bold text-gray-700 shadow-md transition-all duration-150 active:scale-95 select-none"
               >
                 ▲
               </button>
               <div></div>
 
-              <button 
-                id="cam-left" 
+              <button
+                id="cam-left"
                 class="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 active:from-gray-300 active:to-gray-400 border-2 border-gray-300 hover:border-gray-400 rounded-lg text-xl sm:text-2xl lg:text-3xl font-bold text-gray-700 shadow-md transition-all duration-150 active:scale-95 select-none"
               >
                 ◀
               </button>
-              <button 
-                id="cam-home" 
+              <button
+                id="cam-home"
                 class="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 active:from-green-700 active:to-green-800 border-2 border-green-600 hover:border-green-700 rounded-lg text-xl sm:text-2xl lg:text-3xl font-bold text-white shadow-md transition-all duration-150 active:scale-95 select-none"
               >
                 ●
               </button>
-              <button 
-                id="cam-right" 
+              <button
+                id="cam-right"
                 class="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 active:from-gray-300 active:to-gray-400 border-2 border-gray-300 hover:border-gray-400 rounded-lg text-xl sm:text-2xl lg:text-3xl font-bold text-gray-700 shadow-md transition-all duration-150 active:scale-95 select-none"
               >
                 ▶
               </button>
 
               <div></div>
-              <button 
-                id="cam-down" 
+              <button
+                id="cam-down"
                 class="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 active:from-gray-300 active:to-gray-400 border-2 border-gray-300 hover:border-gray-400 rounded-lg text-xl sm:text-2xl lg:text-3xl font-bold text-gray-700 shadow-md transition-all duration-150 active:scale-95 select-none"
               >
                 ▼
