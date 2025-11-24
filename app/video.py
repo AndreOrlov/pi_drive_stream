@@ -11,6 +11,8 @@ from aiortc import MediaStreamTrack, RTCPeerConnection
 from aiortc.contrib.media import MediaRelay
 from av import VideoFrame
 
+from app.config import config
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -41,10 +43,10 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
         if _picam2 is None:
             logger.info("Initializing global Picamera2 instance")
             cam = Picamera2()  # type: ignore[call-arg]
-            config = cam.create_preview_configuration(
-                main={"format": "RGB888", "size": (640, 480)}
+            cam_config = cam.create_preview_configuration(
+                main={"format": "RGB888", "size": (config.video.width, config.video.height)}
             )
-            cam.configure(config)
+            cam.configure(cam_config)
             cam.start()
             _picam2 = cam
 
@@ -54,7 +56,7 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
 class CameraVideoTrack(MediaStreamTrack):
     kind = "video"
 
-    def __init__(self, camera_index: int = 0) -> None:
+    def __init__(self) -> None:
         super().__init__()
         self._lock = asyncio.Lock()
         self._counter = 0
@@ -64,7 +66,7 @@ class CameraVideoTrack(MediaStreamTrack):
         self._picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
         self._cap: Optional[cv2.VideoCapture] = None
 
-        if PICAMERA2_AVAILABLE:
+        if PICAMERA2_AVAILABLE and config.video.use_picamera2:
             try:
                 self._picam2 = _ensure_picamera2()
                 self._use_picamera2 = True
@@ -72,9 +74,9 @@ class CameraVideoTrack(MediaStreamTrack):
                 logger.error("Failed to initialize Picamera2, falling back to OpenCV: %s", exc)
 
         if not self._use_picamera2:
-            self._cap = cv2.VideoCapture(camera_index)
+            self._cap = cv2.VideoCapture(config.video.camera_index)
             if not self._cap.isOpened():
-                logger.error("Failed to open camera at index %s", camera_index)
+                logger.error("Failed to open camera at index %s", config.video.camera_index)
         self._frame_count = 0
 
     async def recv(self) -> VideoFrame:
@@ -85,8 +87,8 @@ class CameraVideoTrack(MediaStreamTrack):
 
             # Calculate timestamp based on elapsed time
             elapsed = time.time() - self._start_time
-            pts = int(elapsed * 90000)  # 90kHz clock
-            time_base = fractions.Fraction(1, 90000)
+            pts = int(elapsed * config.video.pts_clock_hz)
+            time_base = fractions.Fraction(1, config.video.pts_clock_hz)
 
             self._frame_count += 1
 
@@ -98,10 +100,10 @@ class CameraVideoTrack(MediaStreamTrack):
                 if self._cap is not None:
                     ret, frame = self._cap.read()
                 if not ret or frame is None:
-                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                    frame = np.zeros((config.video.height, config.video.width, 3), dtype=np.uint8)
                 else:
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frame = cv2.resize(frame, (640, 480))
+                    frame = cv2.resize(frame, (config.video.width, config.video.height))
 
             # Create VideoFrame
             video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
@@ -109,7 +111,7 @@ class CameraVideoTrack(MediaStreamTrack):
             video_frame.time_base = time_base
 
             # Control frame rate
-            await asyncio.sleep(1/30)  # 30 FPS
+            await asyncio.sleep(1 / config.video.fps)
 
             return video_frame
         except Exception as e:

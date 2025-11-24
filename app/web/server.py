@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app import event_bus
+from app.config import config
 from app.messages import CameraCommand, DriveCommand, DriveMode
 from app.nodes.camera import CameraNode
 from app.nodes.drive import DriveNode
@@ -17,7 +18,7 @@ from app.video import create_peer_connection
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
-drive_node = DriveNode(timeout_s=0.5)
+drive_node = DriveNode()
 camera_node = CameraNode()
 
 # Keep peer connections alive
@@ -52,6 +53,28 @@ async def health() -> Dict[str, str]:
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse("frontend/index.html")
+
+
+@app.get("/api/config")
+async def get_config() -> Dict[str, Any]:
+    """Получить конфигурацию для фронтенда"""
+    return {
+        "camera": {
+            "step": config.camera.step_size,
+            "speed": config.camera.continuous_speed,
+            "update_interval_ms": 1000 // config.camera.update_rate,
+            "hold_delay_ms": config.camera.hold_delay_ms,
+            "min_pan": config.camera.min_pan,
+            "max_pan": config.camera.max_pan,
+            "min_tilt": config.camera.min_tilt,
+            "max_tilt": config.camera.max_tilt,
+        },
+        "video": {
+            "width": config.video.width,
+            "height": config.video.height,
+            "fps": config.video.fps,
+        }
+    }
 
 
 class Offer(BaseModel):
