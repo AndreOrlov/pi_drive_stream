@@ -13,9 +13,13 @@ async def apply_camera_command(cmd: CameraCommand) -> None:
     # TODO: replace with real servo control for camera pan/tilt
     cfg = config.camera
 
+    # Применяем инверсию если нужно
+    pan_value = -cmd.pan if cfg.invert_pan else cmd.pan
+    tilt_value = -cmd.tilt if cfg.invert_tilt else cmd.tilt
+
     # Преобразование в углы серво с учетом конфига
-    pan_angle = int((cmd.pan + 1.0) / 2.0 * 180)
-    tilt_angle = int((cmd.tilt + 1.0) / 2.0 * 180)
+    pan_angle = int((pan_value + 1.0) / 2.0 * 180)
+    tilt_angle = int((tilt_value + 1.0) / 2.0 * 180)
 
     if cfg.enable_logging:
         print(f"[CAMERA] pan={cmd.pan:.2f} ({pan_angle}°), tilt={cmd.tilt:.2f} ({tilt_angle}°)")
