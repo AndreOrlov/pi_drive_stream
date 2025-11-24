@@ -17,6 +17,51 @@
     <button id="stop" style="color: red;">STOP</button>
   </div>
 
+  <!-- Camera Control D-Pad -->
+  <div style="margin-top: 24px; border-top: 1px solid #ddd; padding-top: 16px;">
+    <h3 style="margin-bottom: 8px;">Camera Control</h3>
+
+    <div style="display: grid; grid-template-columns: 60px 60px 60px; gap: 4px; width: fit-content;">
+      <div></div>
+      <button id="cam-up" class="cam-btn">▲</button>
+      <div></div>
+
+      <button id="cam-left" class="cam-btn">◀</button>
+      <button id="cam-home" class="cam-btn" style="background: #4CAF50; color: white;">●</button>
+      <button id="cam-right" class="cam-btn">▶</button>
+
+      <div></div>
+      <button id="cam-down" class="cam-btn">▼</button>
+      <div></div>
+    </div>
+
+    <div style="margin-top: 8px; font-size: 12px; color: #666;">
+      Pan: <span id="pan-display">0.00</span> | Tilt: <span id="tilt-display">0.00</span>
+    </div>
+  </div>
+
+  <style>
+    .cam-btn {
+      width: 60px;
+      height: 60px;
+      font-size: 24px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+      background: #f0f0f0;
+      transition: all 0.1s;
+    }
+    .cam-btn:active {
+      background: #ddd;
+      transform: scale(0.95);
+    }
+    .cam-btn:hover {
+      background: #e8e8e8;
+      border-color: #999;
+    }
+  </style>
+
   <script src="/static/main.js?v=2"></script>
 </body>
 </html>
