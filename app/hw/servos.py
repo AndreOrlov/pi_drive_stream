@@ -5,7 +5,7 @@ Manages pan/tilt servos for camera positioning.
 
 from app.config import config
 from app.messages import CameraCommand
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
 try:
     import pigpio  # type: ignore[import-not-found]
@@ -14,10 +14,7 @@ except ImportError:
     pigpio = None  # type: ignore[assignment]
     PIGPIO_AVAILABLE = False
 
-if TYPE_CHECKING:
-    _pi: Optional[pigpio.pi] = None
-else:
-    _pi: Optional[object] = None
+_pi: Optional[object] = None
 
 
 def _get_pi():
