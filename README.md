@@ -7,6 +7,7 @@ Remote-controlled car with video streaming based on Raspberry Pi 5.
 - **Low-latency video streaming** via WebRTC
 - **Real-time control** over WebSocket
 - **Camera control** with D-Pad interface (pan/tilt servos ready)
+- **OSD (On-Screen Display)** — modular overlay system with crosshair, telemetry, and warnings
 - **Emergency stop** functionality
 - **Centralized configuration** system with validation
 - **Responsive design** — mobile-friendly interface (Tailwind CSS)
@@ -23,6 +24,7 @@ Remote-controlled car with video streaming based on Raspberry Pi 5.
 
 - **Backend:** Python 3.13, FastAPI, aiortc, Pydantic
 - **Video:** Picamera2 (libcamera), WebRTC
+- **OSD:** OpenCV with modular layer system (crosshair, telemetry, warnings)
 - **Frontend:** Vanilla JS, WebRTC API, Tailwind CSS
 - **Control:** WebSocket, event-driven architecture
 - **Config:** Centralized configuration with validation
@@ -187,6 +189,10 @@ pi_drive_stream/
 │   ├── hw/
 │   │   ├── servos.py       # Camera servo control (pigpio implementation)
 │   │   └── motors_stub.py  # Drive motor control stub (TODO: GPIO/PWM)
+│   ├── overlay/
+│   │   ├── base.py         # OSD interfaces (Protocol, ABC)
+│   │   ├── cv_renderer.py  # OpenCV OSD renderer
+│   │   └── layers/         # OSD layers (crosshair, telemetry, warnings)
 │   └── web/
 │       └── server.py       # FastAPI server, WebSocket, WebRTC signaling
 ├── frontend/
@@ -195,7 +201,8 @@ pi_drive_stream/
 ├── main.py                 # Entry point
 ├── start.sh                # Quick start script
 ├── requirements.txt        # Python dependencies
-└── CONFIG.md               # Configuration guide
+├── CONFIG.md               # Configuration guide
+└── PLAN_OSD.md             # OSD system architecture and roadmap
 ```
 
 ## Architecture
@@ -302,6 +309,17 @@ camera=CameraConfig(
 video=VideoConfig(
     flip_vertical=True,
     flip_horizontal=True
+)
+```
+
+**Configure OSD (On-Screen Display):**
+```python
+# app/config.py
+overlay=OverlayConfig(
+    enabled=True,      # Enable/disable OSD
+    crosshair=True,    # Show crosshair
+    telemetry=True,    # Show date/time
+    warnings=False,    # Hide warnings
 )
 ```
 
@@ -433,7 +451,9 @@ rpicam-vid -t 10000 --inline -o test.h264
 - [ ] Real motor control (GPIO/PWM via `pigpio` or `lgpio`)
 - [x] Camera control UI (D-Pad interface)
 - [x] Camera servo hardware integration (pan/tilt with pigpio on GPIO 18)
-- [ ] Telemetry overlay on video (battery, FPS, signal strength)
+- [x] OSD system with modular layers (crosshair, telemetry, warnings)
+- [ ] Dynamic telemetry overlay (battery, speed, servo angles, FPS)
+- [ ] Hardware-accelerated OSD (Picamera2 DRM overlays, GStreamer)
 - [ ] Gamepad support (Gamepad API)
 - [ ] Recording to file
 - [ ] Multiple camera support
