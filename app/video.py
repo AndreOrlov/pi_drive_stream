@@ -46,15 +46,19 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
             cam = Picamera2()  # type: ignore[call-arg]
 
             # Применяем трансформации из конфига
-            transform = Transform(
-                hflip=config.video.flip_horizontal,
-                vflip=config.video.flip_vertical
-            ) if Transform is not None else None
+            config_params = {
+                "main": {"format": "RGB888", "size": (config.video.width, config.video.height)}
+            }
 
-            cam_config = cam.create_preview_configuration(
-                main={"format": "RGB888", "size": (config.video.width, config.video.height)},
-                transform=transform
-            )
+            # Добавляем transform только если он доступен и нужен
+            if Transform is not None and (config.video.flip_horizontal or config.video.flip_vertical):
+                transform = Transform(
+                    hflip=config.video.flip_horizontal,
+                    vflip=config.video.flip_vertical
+                )
+                config_params["transform"] = transform
+
+            cam_config = cam.create_preview_configuration(**config_params)
             cam.configure(cam_config)
             cam.start()
             _picam2 = cam
