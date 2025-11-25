@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class DriveMode(str, Enum):
@@ -25,6 +24,4 @@ class CameraCommand:
 class RobotState:
     vx: float
     steer: float
-    battery_voltage: Optional[float] = None
-
-
+    battery_voltage: float | None = None

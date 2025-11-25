@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Any, Dict, Set
+from typing import Any
 
 from aiortc import RTCPeerConnection, RTCSessionDescription
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -22,7 +22,7 @@ drive_node = DriveNode()
 camera_node = CameraNode()
 
 # Keep peer connections alive
-_peer_connections: Set[RTCPeerConnection] = set()
+_peer_connections: set[RTCPeerConnection] = set()
 
 
 async def _run_peer_connection(pc: RTCPeerConnection) -> None:
@@ -46,7 +46,7 @@ async def on_startup() -> None:
 
 
 @app.get("/health")
-async def health() -> Dict[str, str]:
+async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
@@ -56,7 +56,7 @@ async def index() -> FileResponse:
 
 
 @app.get("/api/config")
-async def get_config() -> Dict[str, Any]:
+async def get_config() -> dict[str, Any]:
     """Получить конфигурацию для фронтенда"""
     return {
         "camera": {
@@ -73,7 +73,7 @@ async def get_config() -> Dict[str, Any]:
             "width": config.video.width,
             "height": config.video.height,
             "fps": config.video.fps,
-        }
+        },
     }
 
 
@@ -83,7 +83,7 @@ class Offer(BaseModel):
 
 
 @app.post("/webrtc/offer")
-async def webrtc_offer(offer: Offer) -> Dict[str, Any]:
+async def webrtc_offer(offer: Offer) -> dict[str, Any]:
     pc: RTCPeerConnection = await create_peer_connection()
 
     # Store PC to keep it alive
@@ -111,23 +111,25 @@ async def ws_control(ws: WebSocket) -> None:
 
             msg_type = msg.get("type")
             if msg_type == "drive":
-                cmd = DriveCommand(
+                drive_cmd = DriveCommand(
                     vx=float(msg.get("vx", 0.0)),
                     steer=float(msg.get("steer", 0.0)),
                     mode=DriveMode.MANUAL,
                 )
-                await event_bus.publish_drive_cmd(cmd)
+                await event_bus.publish_drive_cmd(drive_cmd)
 
             elif msg_type == "camera":
-                cmd = CameraCommand(
+                camera_cmd = CameraCommand(
                     pan=float(msg.get("pan", 0.0)),
                     tilt=float(msg.get("tilt", 0.0)),
                 )
-                await event_bus.publish_camera_cmd(cmd)
+                await event_bus.publish_camera_cmd(camera_cmd)
 
             elif msg_type == "emergency_stop":
-                cmd = DriveCommand(vx=0.0, steer=0.0, mode=DriveMode.EMERGENCY_STOP)
-                await event_bus.publish_drive_cmd(cmd)
+                stop_cmd = DriveCommand(
+                    vx=0.0, steer=0.0, mode=DriveMode.EMERGENCY_STOP
+                )
+                await event_bus.publish_drive_cmd(stop_cmd)
 
     except WebSocketDisconnect:
         stop_cmd = DriveCommand(vx=0.0, steer=0.0, mode=DriveMode.EMERGENCY_STOP)

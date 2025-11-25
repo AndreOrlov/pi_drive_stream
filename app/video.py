@@ -13,13 +13,15 @@ from av import VideoFrame
 
 from app.config import config
 from app.overlay import CvOverlayRenderer
+from app.overlay.base import Layer
 from app.overlay.layers import CrosshairLayer, TelemetryLayer, WarningLayer
 
 logger = logging.getLogger(__name__)
 
 try:
-    from picamera2 import Picamera2  # type: ignore[import-not-found]
     import libcamera  # type: ignore[import-not-found]
+    from picamera2 import Picamera2  # type: ignore[import-not-found]
+
     PICAMERA2_AVAILABLE = True
 except ImportError:  # pragma: no cover - not available on non-RPi dev machines
     Picamera2 = None  # type: ignore[assignment]
@@ -28,7 +30,7 @@ except ImportError:  # pragma: no cover - not available on non-RPi dev machines
 
 _picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
 _picam2_lock = threading.Lock()
-_relay: Optional[MediaRelay] = None
+_relay: MediaRelay | None = None
 
 
 def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
@@ -48,11 +50,14 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
 
             # Применяем трансформации из конфига
             cam_config = cam.create_preview_configuration(
-                main={"format": "RGB888", "size": (config.video.width, config.video.height)},
+                main={
+                    "format": "RGB888",
+                    "size": (config.video.width, config.video.height),
+                },
                 transform=libcamera.Transform(
                     hflip=int(config.video.flip_horizontal),
-                    vflip=int(config.video.flip_vertical)
-                )
+                    vflip=int(config.video.flip_vertical),
+                ),
             )
             cam.configure(cam_config)
             cam.start()
@@ -68,29 +73,33 @@ class CameraVideoTrack(MediaStreamTrack):
         super().__init__()
         self._lock = asyncio.Lock()
         self._counter = 0
-        self._start_time = None
+        self._start_time: float | None = None
 
         self._use_picamera2 = False
-        self._picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
-        self._cap: Optional[cv2.VideoCapture] = None
+        self._picam2: Picamera2 | None = None  # type: ignore[name-defined]
+        self._cap: cv2.VideoCapture | None = None
 
         if PICAMERA2_AVAILABLE and config.video.use_picamera2:
             try:
                 self._picam2 = _ensure_picamera2()
                 self._use_picamera2 = True
             except Exception as exc:  # pragma: no cover - runtime-only on RPi
-                logger.error("Failed to initialize Picamera2, falling back to OpenCV: %s", exc)
+                logger.error(
+                    "Failed to initialize Picamera2, falling back to OpenCV: %s", exc
+                )
 
         if not self._use_picamera2:
             self._cap = cv2.VideoCapture(config.video.camera_index)
             if not self._cap.isOpened():
-                logger.error("Failed to open camera at index %s", config.video.camera_index)
+                logger.error(
+                    "Failed to open camera at index %s", config.video.camera_index
+                )
         self._frame_count = 0
 
         # Инициализация OSD рендерера
-        self._overlay_renderer: Optional[CvOverlayRenderer] = None
+        self._overlay_renderer: CvOverlayRenderer | None = None
         if config.overlay.enabled:
-            layers = []
+            layers: list[Layer] = []
             if config.overlay.crosshair:
                 layers.append(CrosshairLayer())
             if config.overlay.telemetry:
@@ -123,7 +132,9 @@ class CameraVideoTrack(MediaStreamTrack):
                 if self._cap is not None:
                     ret, frame = self._cap.read()
                 if not ret or frame is None:
-                    frame = np.zeros((config.video.height, config.video.width, 3), dtype=np.uint8)
+                    frame = np.zeros(
+                        (config.video.height, config.video.width, 3), dtype=np.uint8
+                    )
                 else:
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     frame = cv2.resize(frame, (config.video.width, config.video.height))
@@ -132,9 +143,9 @@ class CameraVideoTrack(MediaStreamTrack):
                     if config.video.flip_horizontal and config.video.flip_vertical:
                         frame = cv2.flip(frame, -1)  # оба направления
                     elif config.video.flip_vertical:
-                        frame = cv2.flip(frame, 0)   # только вертикально
+                        frame = cv2.flip(frame, 0)  # только вертикально
                     elif config.video.flip_horizontal:
-                        frame = cv2.flip(frame, 1)   # только горизонтально
+                        frame = cv2.flip(frame, 1)  # только горизонтально
 
             # Отрисовка OSD
             if self._overlay_renderer is not None:

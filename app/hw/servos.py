@@ -5,16 +5,16 @@ Manages pan/tilt servos for camera positioning.
 
 from app.config import config
 from app.messages import CameraCommand
-from typing import Optional
 
 try:
     import pigpio  # type: ignore[import-not-found]
+
     PIGPIO_AVAILABLE = True
 except ImportError:
     pigpio = None  # type: ignore[assignment]
     PIGPIO_AVAILABLE = False
 
-_pi: Optional[object] = None
+_pi: object | None = None
 
 
 def _get_pi():
@@ -25,7 +25,9 @@ def _get_pi():
     if _pi is None:
         _pi = pigpio.pi()
         if not _pi.connected:
-            raise RuntimeError("Cannot connect to pigpiod. Is it running? (sudo systemctl start pigpiod)")
+            raise RuntimeError(
+                "Cannot connect to pigpiod. Is it running? (sudo systemctl start pigpiod)"
+            )
     return _pi
 
 
@@ -51,15 +53,21 @@ async def apply_camera_command(cmd: CameraCommand) -> None:
     tilt_angle = int((tilt_value + 1.0) / 2.0 * 180)
 
     # Преобразование в PWM импульсы (мкс)
-    pan_pulse = cfg.servo_min_pulse + (pan_angle / 180.0) * (cfg.servo_max_pulse - cfg.servo_min_pulse)
-    tilt_pulse = cfg.servo_min_pulse + (tilt_angle / 180.0) * (cfg.servo_max_pulse - cfg.servo_min_pulse)
+    pan_pulse = cfg.servo_min_pulse + (pan_angle / 180.0) * (
+        cfg.servo_max_pulse - cfg.servo_min_pulse
+    )
+    tilt_pulse = cfg.servo_min_pulse + (tilt_angle / 180.0) * (
+        cfg.servo_max_pulse - cfg.servo_min_pulse
+    )
 
     # Отправка команд на сервоприводы
     pi.set_servo_pulsewidth(cfg.pan_gpio_pin, pan_pulse)
     pi.set_servo_pulsewidth(cfg.tilt_gpio_pin, tilt_pulse)
 
     if cfg.enable_logging:
-        print(f"[CAMERA] pan={cmd.pan:.2f} ({pan_angle}°, {pan_pulse:.0f}μs), tilt={cmd.tilt:.2f} ({tilt_angle}°, {tilt_pulse:.0f}μs)")
+        print(
+            f"[CAMERA] pan={cmd.pan:.2f} ({pan_angle}°, {pan_pulse:.0f}μs), tilt={cmd.tilt:.2f} ({tilt_angle}°, {tilt_pulse:.0f}μs)"
+        )
 
 
 def cleanup_servo():

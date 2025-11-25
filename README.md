@@ -477,6 +477,61 @@ pytest tests/ --cov=app/overlay --cov-report=term-missing
 
 All tests run without hardware dependencies (no camera or GPIO required).
 
+## CI/CD
+
+The project uses GitHub Actions for continuous integration:
+
+- **Automated testing** on every push and pull request
+- **Code linting** with ruff
+- **Type checking** with mypy (warnings only)
+- **Branch protection** for `dev` and `master`
+
+### GitHub Actions Workflow
+
+The CI pipeline runs:
+1. Install dependencies
+2. Run ruff linter
+3. Run mypy type checker
+4. Run pytest with coverage
+
+### Running CI Checks Locally
+
+Run all CI checks before pushing:
+
+```bash
+# Run all checks (same as CI)
+./scripts/run_ci_checks.sh
+
+# Auto-fix issues
+./scripts/fix_all.sh
+
+# Individual checks
+ruff check app/ tests/              # Linter
+ruff format --check app/ tests/     # Format check
+mypy app/ --ignore-missing-imports  # Type check
+pytest tests/ -v                    # Tests
+```
+
+### Pre-commit Hooks (optional)
+
+Install pre-commit hooks to run checks locally before committing:
+
+```bash
+pip install pre-commit
+pre-commit install
+
+# Run manually
+pre-commit run --all-files
+```
+
+### Branch Protection
+
+- **master**: Requires PR approval + passing CI
+- **dev**: Requires PR approval + passing CI
+- Direct push allowed only for repository owner
+
+See `.github/BRANCH_PROTECTION.md` for setup instructions.
+
 ## Future Plans
 
 - [ ] Real motor control (GPIO/PWM via `pigpio` or `lgpio`)
