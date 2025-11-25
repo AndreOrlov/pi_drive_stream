@@ -135,19 +135,20 @@ class CameraVideoTrack(MediaStreamTrack):
             # Initialize start time on first frame
             if self._start_time is None:
                 self._start_time = loop_start
-                logger.info(">>> FIRST FRAME: Starting video stream with monotonic PTS <<<")
+                logger.info(">>> FIRST FRAME: Starting video stream with wall clock PTS <<<")
 
-            # Используем монотонный счётчик кадров для PTS вместо wall clock
-            # Это предотвращает дрейф и накопление задержки в WebRTC буферах
-            pts = int(self._frame_count * config.video.pts_clock_hz / config.video.fps)
+            # Используем реальное elapsed time для PTS
+            # Это синхронизирует PTS с реальной скоростью генерации кадров
+            elapsed = loop_start - self._start_time
+            pts = int(elapsed * config.video.pts_clock_hz)
             time_base = fractions.Fraction(1, config.video.pts_clock_hz)
 
-            # Логируем разницу между wall clock и monotonic PTS (каждые 300 кадров)
-            if self._frame_count % 300 == 0:
-                elapsed = loop_start - self._start_time
-                wall_clock_pts = int(elapsed * config.video.pts_clock_hz)
-                pts_drift_ms = (wall_clock_pts - pts) / config.video.pts_clock_hz * 1000
-                msg = f"PTS drift check: frame={self._frame_count}, wall_clock_drift={pts_drift_ms:.1f} ms"
+            # Логируем реальный FPS (каждые 300 кадров)
+            if self._frame_count > 0 and self._frame_count % 300 == 0:
+                actual_fps = self._frame_count / elapsed if elapsed > 0 else 0
+                target_fps = config.video.fps
+                fps_ratio = (actual_fps / target_fps * 100) if target_fps > 0 else 0
+                msg = f"FPS check: frame={self._frame_count}, actual={actual_fps:.1f} FPS ({fps_ratio:.1f}% of target {target_fps} FPS)"
                 print(f"[VIDEO] {msg}")
                 logger.info(msg)
 
