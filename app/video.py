@@ -17,18 +17,10 @@ logger = logging.getLogger(__name__)
 
 try:
     from picamera2 import Picamera2  # type: ignore[import-not-found]
+    import libcamera  # type: ignore[import-not-found]
     PICAMERA2_AVAILABLE = True
-
-    # Transform находится в libcamera, а не в picamera2
-    try:
-        import libcamera  # type: ignore[import-not-found]
-        Transform = libcamera.Transform
-    except ImportError:
-        Transform = None  # type: ignore[assignment]
-
 except ImportError:  # pragma: no cover - not available on non-RPi dev machines
     Picamera2 = None  # type: ignore[assignment]
-    Transform = None  # type: ignore[assignment]
     PICAMERA2_AVAILABLE = False
 
 
@@ -53,14 +45,12 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
             cam = Picamera2()  # type: ignore[call-arg]
 
             # Применяем трансформации из конфига
-            transform = Transform(
-                hflip=1 if config.video.flip_horizontal else 0,
-                vflip=1 if config.video.flip_vertical else 0
-            ) if Transform is not None else None
-
             cam_config = cam.create_preview_configuration(
                 main={"format": "RGB888", "size": (config.video.width, config.video.height)},
-                transform=transform
+                transform=libcamera.Transform(
+                    hflip=int(config.video.flip_horizontal),
+                    vflip=int(config.video.flip_vertical)
+                )
             )
             cam.configure(cam_config)
             cam.start()
