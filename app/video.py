@@ -231,6 +231,7 @@ async def create_peer_connection() -> RTCPeerConnection:
 
     if _relay is None:
         _relay = MediaRelay()
+        print("[VIDEO] === MediaRelay created ===")
 
     # Создаём единственный camera track при первом подключении
     with _camera_track_lock:
@@ -248,7 +249,14 @@ async def create_peer_connection() -> RTCPeerConnection:
     video_track = _relay.subscribe(_camera_track)
     pc.addTrack(video_track)
 
-    print(f"[VIDEO] === Client connected to shared video track (track_id={id(_camera_track)}) ===")
+    # Подсчитываем активные подписки (приблизительно через внутренние структуры relay)
+    try:
+        # MediaRelay._RelayStreamTrack хранит подписчиков
+        relay_tracks = len(_relay._tracks) if hasattr(_relay, '_tracks') else '?'
+    except:
+        relay_tracks = '?'
+
+    print(f"[VIDEO] === Client connected to shared video track (track_id={id(_camera_track)}, relay_subscribers={relay_tracks}) ===")
     logger.info("=== Client connected to shared video track (track_id=%s) ===", id(_camera_track))
 
     logger.info("Client connected to shared video track")

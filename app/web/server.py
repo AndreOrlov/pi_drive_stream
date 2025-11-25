@@ -30,13 +30,16 @@ async def _run_peer_connection(pc: RTCPeerConnection) -> None:
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange() -> None:
-        if pc.connectionState == "closed":
+        print(f"[WEBRTC] Peer connection state changed: {pc.connectionState}")
+        if pc.connectionState in ("closed", "failed"):
+            print(f"[WEBRTC] Cleaning up peer connection (state={pc.connectionState})")
             _peer_connections.discard(pc)
             await pc.close()
+            print(f"[WEBRTC] Active peer connections: {len(_peer_connections)}")
 
     @pc.on("iceconnectionstatechange")
     async def on_iceconnectionstatechange() -> None:
-        pass  # Connection state monitoring without logging
+        print(f"[WEBRTC] ICE connection state changed: {pc.iceConnectionState}")
 
 
 @app.on_event("startup")
@@ -88,6 +91,7 @@ async def webrtc_offer(offer: Offer) -> dict[str, Any]:
 
     # Store PC to keep it alive
     _peer_connections.add(pc)
+    print(f"[WEBRTC] New peer connection created. Active connections: {len(_peer_connections)}")
 
     # Start background task to monitor connection
     asyncio.create_task(_run_peer_connection(pc))
