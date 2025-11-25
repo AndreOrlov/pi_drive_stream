@@ -120,11 +120,11 @@ class OverlayConfig(BaseModel):
 class Config(BaseModel):
     """Главная конфигурация приложения"""
 
-    server: ServerConfig = ServerConfig()
-    drive: DriveConfig = DriveConfig()
-    video: VideoConfig = VideoConfig()
-    camera: CameraConfig = CameraConfig()
-    overlay: OverlayConfig = OverlayConfig()
+    server: ServerConfig = Field(default_factory=ServerConfig)
+    drive: DriveConfig = Field(default_factory=DriveConfig)
+    video: VideoConfig = Field(default_factory=VideoConfig)
+    camera: CameraConfig = Field(default_factory=CameraConfig)
+    overlay: OverlayConfig = Field(default_factory=OverlayConfig)
 
 
 # Глобальный экземпляр конфигурации

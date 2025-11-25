@@ -111,23 +111,25 @@ async def ws_control(ws: WebSocket) -> None:
 
             msg_type = msg.get("type")
             if msg_type == "drive":
-                cmd = DriveCommand(
+                drive_cmd = DriveCommand(
                     vx=float(msg.get("vx", 0.0)),
                     steer=float(msg.get("steer", 0.0)),
                     mode=DriveMode.MANUAL,
                 )
-                await event_bus.publish_drive_cmd(cmd)
+                await event_bus.publish_drive_cmd(drive_cmd)
 
             elif msg_type == "camera":
-                cmd = CameraCommand(
+                camera_cmd = CameraCommand(
                     pan=float(msg.get("pan", 0.0)),
                     tilt=float(msg.get("tilt", 0.0)),
                 )
-                await event_bus.publish_camera_cmd(cmd)
+                await event_bus.publish_camera_cmd(camera_cmd)
 
             elif msg_type == "emergency_stop":
-                cmd = DriveCommand(vx=0.0, steer=0.0, mode=DriveMode.EMERGENCY_STOP)
-                await event_bus.publish_drive_cmd(cmd)
+                stop_cmd = DriveCommand(
+                    vx=0.0, steer=0.0, mode=DriveMode.EMERGENCY_STOP
+                )
+                await event_bus.publish_drive_cmd(stop_cmd)
 
     except WebSocketDisconnect:
         stop_cmd = DriveCommand(vx=0.0, steer=0.0, mode=DriveMode.EMERGENCY_STOP)

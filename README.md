@@ -494,6 +494,24 @@ The CI pipeline runs:
 3. Run mypy type checker
 4. Run pytest with coverage
 
+### Running CI Checks Locally
+
+Run all CI checks before pushing:
+
+```bash
+# Run all checks (same as CI)
+./scripts/run_ci_checks.sh
+
+# Auto-fix issues
+./scripts/fix_all.sh
+
+# Individual checks
+ruff check app/ tests/              # Linter
+ruff format --check app/ tests/     # Format check
+mypy app/ --ignore-missing-imports  # Type check
+pytest tests/ -v                    # Tests
+```
+
 ### Pre-commit Hooks (optional)
 
 Install pre-commit hooks to run checks locally before committing:

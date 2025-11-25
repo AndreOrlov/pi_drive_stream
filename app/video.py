@@ -13,6 +13,7 @@ from av import VideoFrame
 
 from app.config import config
 from app.overlay import CvOverlayRenderer
+from app.overlay.base import Layer
 from app.overlay.layers import CrosshairLayer, TelemetryLayer, WarningLayer
 
 logger = logging.getLogger(__name__)
@@ -72,7 +73,7 @@ class CameraVideoTrack(MediaStreamTrack):
         super().__init__()
         self._lock = asyncio.Lock()
         self._counter = 0
-        self._start_time = None
+        self._start_time: float | None = None
 
         self._use_picamera2 = False
         self._picam2: Picamera2 | None = None  # type: ignore[name-defined]
@@ -98,7 +99,7 @@ class CameraVideoTrack(MediaStreamTrack):
         # Инициализация OSD рендерера
         self._overlay_renderer: CvOverlayRenderer | None = None
         if config.overlay.enabled:
-            layers = []
+            layers: list[Layer] = []
             if config.overlay.crosshair:
                 layers.append(CrosshairLayer())
             if config.overlay.telemetry:
