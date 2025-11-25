@@ -5,7 +5,7 @@ class ServerConfig(BaseModel):
     """Настройки веб-сервера"""
     host: str = Field("0.0.0.0", description="Адрес для привязки сервера")
     port: int = Field(8000, ge=1, le=65535, description="Порт сервера")
-    reload: bool = Field(False, description="Auto-reload при изменении кода (для разработки)")
+    reload: bool = Field(True, description="Auto-reload при изменении кода (для разработки)")
 
 
 class DriveConfig(BaseModel):

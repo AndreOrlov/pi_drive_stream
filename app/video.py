@@ -16,18 +16,24 @@ from app.config import config
 logger = logging.getLogger(__name__)
 
 try:
-    from picamera2 import Picamera2, Transform  # type: ignore[import-not-found]
-
+    from picamera2 import Picamera2  # type: ignore[import-not-found]
     PICAMERA2_AVAILABLE = True
     print("[VIDEO MODULE] Picamera2 imported successfully")
+
+    # Transform находится в libcamera, а не в picamera2
+    try:
+        import libcamera  # type: ignore[import-not-found]
+        Transform = libcamera.Transform
+        print("[VIDEO MODULE] libcamera.Transform imported successfully")
+    except ImportError:
+        Transform = None  # type: ignore[assignment]
+        print("[VIDEO MODULE] libcamera.Transform not available (will try dict)")
+
 except ImportError as e:  # pragma: no cover - not available on non-RPi dev machines
     Picamera2 = None  # type: ignore[assignment]
     Transform = None  # type: ignore[assignment]
     PICAMERA2_AVAILABLE = False
     print(f"[VIDEO MODULE] Picamera2 not available: {e}")
-    print(f"[VIDEO MODULE] sys.path: {__import__('sys').path}")
-    import traceback
-    traceback.print_exc()
 
 
 _picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
@@ -56,15 +62,26 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
                 "main": {"format": "RGB888", "size": (config.video.width, config.video.height)}
             }
 
-            # Добавляем transform только если он доступен и нужен
-            if Transform is not None and (config.video.flip_horizontal or config.video.flip_vertical):
+            # Добавляем transform если нужен
+            if config.video.flip_horizontal or config.video.flip_vertical:
                 print(f"[VIDEO] Applying transform: hflip={config.video.flip_horizontal}, vflip={config.video.flip_vertical}")
                 logger.info(f"Applying transform: hflip={config.video.flip_horizontal}, vflip={config.video.flip_vertical}")
-                transform = Transform(
-                    hflip=config.video.flip_horizontal,
-                    vflip=config.video.flip_vertical
-                )
-                config_params["transform"] = transform
+
+                if Transform is not None:
+                    # libcamera.Transform принимает hflip и vflip как 1/0
+                    transform = Transform(
+                        hflip=1 if config.video.flip_horizontal else 0,
+                        vflip=1 if config.video.flip_vertical else 0
+                    )
+                    config_params["transform"] = transform
+                    print(f"[VIDEO] Transform object created: {transform}")
+                else:
+                    # Fallback - используем словарь (может не работать на новых версиях)
+                    print("[VIDEO] Warning: using dict for transform (may not work)")
+                    config_params["transform"] = {
+                        "hflip": config.video.flip_horizontal,
+                        "vflip": config.video.flip_vertical
+                    }
 
             print(f"[VIDEO] Creating camera configuration")
             logger.info(f"Creating camera configuration with params: {config_params}")
