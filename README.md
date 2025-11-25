@@ -7,6 +7,7 @@ Remote-controlled car with video streaming based on Raspberry Pi 5.
 - **Low-latency video streaming** via WebRTC
 - **Real-time control** over WebSocket
 - **Camera control** with D-Pad interface (pan/tilt servos ready)
+- **OSD (On-Screen Display)** — modular overlay system with crosshair, telemetry, and warnings
 - **Emergency stop** functionality
 - **Centralized configuration** system with validation
 - **Responsive design** — mobile-friendly interface (Tailwind CSS)
@@ -23,6 +24,7 @@ Remote-controlled car with video streaming based on Raspberry Pi 5.
 
 - **Backend:** Python 3.13, FastAPI, aiortc, Pydantic
 - **Video:** Picamera2 (libcamera), WebRTC
+- **OSD:** OpenCV with modular layer system (crosshair, telemetry, warnings)
 - **Frontend:** Vanilla JS, WebRTC API, Tailwind CSS
 - **Control:** WebSocket, event-driven architecture
 - **Config:** Centralized configuration with validation
@@ -187,15 +189,24 @@ pi_drive_stream/
 │   ├── hw/
 │   │   ├── servos.py       # Camera servo control (pigpio implementation)
 │   │   └── motors_stub.py  # Drive motor control stub (TODO: GPIO/PWM)
+│   ├── overlay/
+│   │   ├── base.py         # OSD interfaces (Protocol, ABC)
+│   │   ├── cv_renderer.py  # OpenCV OSD renderer
+│   │   └── layers/         # OSD layers (crosshair, telemetry, warnings)
 │   └── web/
 │       └── server.py       # FastAPI server, WebSocket, WebRTC signaling
 ├── frontend/
 │   ├── index.html          # Web UI (Tailwind CSS, responsive)
 │   └── main.js             # WebRTC client, controls
+├── tests/
+│   ├── test_overlay_layers.py  # OSD layers tests
+│   ├── test_cv_renderer.py     # Renderer tests
+│   └── test_config.py          # Configuration tests
 ├── main.py                 # Entry point
 ├── start.sh                # Quick start script
 ├── requirements.txt        # Python dependencies
-└── CONFIG.md               # Configuration guide
+├── CONFIG.md               # Configuration guide
+└── PLAN_OSD.md             # OSD system architecture and roadmap
 ```
 
 ## Architecture
@@ -302,6 +313,17 @@ camera=CameraConfig(
 video=VideoConfig(
     flip_vertical=True,
     flip_horizontal=True
+)
+```
+
+**Configure OSD (On-Screen Display):**
+```python
+# app/config.py
+overlay=OverlayConfig(
+    enabled=True,      # Enable/disable OSD
+    crosshair=True,    # Show crosshair
+    telemetry=True,    # Show date/time
+    warnings=False,    # Hide warnings
 )
 ```
 
@@ -428,12 +450,41 @@ logging.basicConfig(level=logging.DEBUG)
 rpicam-vid -t 10000 --inline -o test.h264
 ```
 
+### Running tests
+
+The project includes comprehensive unit tests for the OSD system:
+
+```bash
+# Install pytest (if not already installed)
+pip install pytest
+
+# Run all tests
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_overlay_layers.py -v
+
+# Run with coverage (optional)
+pip install pytest-cov
+pytest tests/ --cov=app/overlay --cov-report=term-missing
+```
+
+**Test coverage:**
+- OSD layers (crosshair, telemetry, warnings)
+- OpenCV renderer
+- Configuration validation
+- Multiple resolutions support
+
+All tests run without hardware dependencies (no camera or GPIO required).
+
 ## Future Plans
 
 - [ ] Real motor control (GPIO/PWM via `pigpio` or `lgpio`)
 - [x] Camera control UI (D-Pad interface)
 - [x] Camera servo hardware integration (pan/tilt with pigpio on GPIO 18)
-- [ ] Telemetry overlay on video (battery, FPS, signal strength)
+- [x] OSD system with modular layers (crosshair, telemetry, warnings)
+- [ ] Dynamic telemetry overlay (battery, speed, servo angles, FPS)
+- [ ] Hardware-accelerated OSD (Picamera2 DRM overlays, GStreamer)
 - [ ] Gamepad support (Gamepad API)
 - [ ] Recording to file
 - [ ] Multiple camera support

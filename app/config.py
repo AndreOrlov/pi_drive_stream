@@ -67,12 +67,22 @@ class CameraConfig(BaseModel):
     enable_logging: bool = Field(True, description="Включить логирование команд управления камерой")
 
 
+class OverlayConfig(BaseModel):
+    """Настройки OSD (On-Screen Display)"""
+    enabled: bool = Field(True, description="Включить OSD")
+    backend: str = Field("cv", description="Backend отрисовки (cv, picamera, gst)")
+    crosshair: bool = Field(True, description="Показывать прицел")
+    telemetry: bool = Field(True, description="Показывать телеметрию (дата/время)")
+    warnings: bool = Field(True, description="Показывать предупреждения")
+
+
 class Config(BaseModel):
     """Главная конфигурация приложения"""
     server: ServerConfig = ServerConfig()
     drive: DriveConfig = DriveConfig()
     video: VideoConfig = VideoConfig()
     camera: CameraConfig = CameraConfig()
+    overlay: OverlayConfig = OverlayConfig()
 
 
 # Глобальный экземпляр конфигурации

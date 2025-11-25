@@ -1,0 +1,28 @@
+[lint]
+# Правила линтера
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults (Pydantic Field)
+]
+
+[format]
+# Форматирование кода
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[lint.per-file-ignores]
+# Игнорировать некоторые правила для тестов
+"tests/**/*.py" = ["S101"]  # assert allowed in tests
