@@ -52,16 +52,22 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
 
             # Добавляем transform только если он доступен и нужен
             if Transform is not None and (config.video.flip_horizontal or config.video.flip_vertical):
+                logger.info(f"Applying transform: hflip={config.video.flip_horizontal}, vflip={config.video.flip_vertical}")
                 transform = Transform(
                     hflip=config.video.flip_horizontal,
                     vflip=config.video.flip_vertical
                 )
                 config_params["transform"] = transform
 
+            logger.info(f"Creating camera configuration with params: {config_params}")
             cam_config = cam.create_preview_configuration(**config_params)
             cam.configure(cam_config)
+            logger.info("Starting camera...")
             cam.start()
             _picam2 = cam
+            logger.info("Picamera2 started successfully")
+        else:
+            logger.info("Reusing existing Picamera2 instance")
 
         return _picam2
 
@@ -81,12 +87,17 @@ class CameraVideoTrack(MediaStreamTrack):
 
         if PICAMERA2_AVAILABLE and config.video.use_picamera2:
             try:
+                logger.info("Attempting to initialize Picamera2...")
                 self._picam2 = _ensure_picamera2()
                 self._use_picamera2 = True
+                logger.info("Picamera2 initialized successfully")
             except Exception as exc:  # pragma: no cover - runtime-only on RPi
                 logger.error("Failed to initialize Picamera2, falling back to OpenCV: %s", exc)
+                import traceback
+                logger.error(traceback.format_exc())
 
         if not self._use_picamera2:
+            logger.info("Using OpenCV VideoCapture as fallback")
             self._cap = cv2.VideoCapture(config.video.camera_index)
             if not self._cap.isOpened():
                 logger.error("Failed to open camera at index %s", config.video.camera_index)
