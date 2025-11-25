@@ -113,12 +113,15 @@ class CameraVideoTrack(MediaStreamTrack):
 
     async def recv(self) -> VideoFrame:
         try:
+            # Засекаем время начала обработки кадра
+            loop_start = time.time()
+
             # Initialize start time on first frame
             if self._start_time is None:
-                self._start_time = time.time()
+                self._start_time = loop_start
 
             # Calculate timestamp based on elapsed time
-            elapsed = time.time() - self._start_time
+            elapsed = loop_start - self._start_time
             pts = int(elapsed * config.video.pts_clock_hz)
             time_base = fractions.Fraction(1, config.video.pts_clock_hz)
 
@@ -156,8 +159,21 @@ class CameraVideoTrack(MediaStreamTrack):
             video_frame.pts = pts
             video_frame.time_base = time_base
 
-            # Control frame rate
-            await asyncio.sleep(1 / config.video.fps)
+            # Динамическое ограничение FPS: спим только оставшееся время
+            frame_duration = time.time() - loop_start
+            target_period = 1.0 / config.video.fps
+            sleep_time = max(0, target_period - frame_duration)
+
+            # Логируем если обработка превысила целевой период (каждые 100 кадров)
+            if self._frame_count % 100 == 0 and frame_duration > target_period:
+                logger.warning(
+                    "Frame processing too slow: %.1f ms (target: %.1f ms, FPS: %.1f)",
+                    frame_duration * 1000,
+                    target_period * 1000,
+                    1.0 / frame_duration if frame_duration > 0 else 0,
+                )
+
+            await asyncio.sleep(sleep_time)
 
             return video_frame
         except Exception as e:
