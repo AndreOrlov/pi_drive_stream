@@ -120,10 +120,21 @@ class CameraVideoTrack(MediaStreamTrack):
             if self._start_time is None:
                 self._start_time = loop_start
 
-            # Calculate timestamp based on elapsed time
-            elapsed = loop_start - self._start_time
-            pts = int(elapsed * config.video.pts_clock_hz)
+            # Используем монотонный счётчик кадров для PTS вместо wall clock
+            # Это предотвращает дрейф и накопление задержки в WebRTC буферах
+            pts = int(self._frame_count * config.video.pts_clock_hz / config.video.fps)
             time_base = fractions.Fraction(1, config.video.pts_clock_hz)
+
+            # Логируем разницу между wall clock и monotonic PTS (каждые 300 кадров)
+            if self._frame_count % 300 == 0:
+                elapsed = loop_start - self._start_time
+                wall_clock_pts = int(elapsed * config.video.pts_clock_hz)
+                pts_drift_ms = (wall_clock_pts - pts) / config.video.pts_clock_hz * 1000
+                logger.info(
+                    "PTS drift check: frame=%d, wall_clock_drift=%.1f ms",
+                    self._frame_count,
+                    pts_drift_ms,
+                )
 
             self._frame_count += 1
 
