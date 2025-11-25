@@ -16,11 +16,12 @@ from app.config import config
 logger = logging.getLogger(__name__)
 
 try:
-    from picamera2 import Picamera2  # type: ignore[import-not-found]
+    from picamera2 import Picamera2, Transform  # type: ignore[import-not-found]
 
     PICAMERA2_AVAILABLE = True
 except ImportError:  # pragma: no cover - not available on non-RPi dev machines
     Picamera2 = None  # type: ignore[assignment]
+    Transform = None  # type: ignore[assignment]
     PICAMERA2_AVAILABLE = False
 
 
@@ -43,8 +44,16 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
         if _picam2 is None:
             logger.info("Initializing global Picamera2 instance")
             cam = Picamera2()  # type: ignore[call-arg]
+
+            # Применяем трансформации из конфига
+            transform = Transform(
+                hflip=config.video.flip_horizontal,
+                vflip=config.video.flip_vertical
+            ) if Transform is not None else None
+
             cam_config = cam.create_preview_configuration(
-                main={"format": "RGB888", "size": (config.video.width, config.video.height)}
+                main={"format": "RGB888", "size": (config.video.width, config.video.height)},
+                transform=transform
             )
             cam.configure(cam_config)
             cam.start()
@@ -104,6 +113,14 @@ class CameraVideoTrack(MediaStreamTrack):
                 else:
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     frame = cv2.resize(frame, (config.video.width, config.video.height))
+
+                    # Применяем трансформации для OpenCV
+                    if config.video.flip_horizontal and config.video.flip_vertical:
+                        frame = cv2.flip(frame, -1)  # оба направления
+                    elif config.video.flip_vertical:
+                        frame = cv2.flip(frame, 0)   # только вертикально
+                    elif config.video.flip_horizontal:
+                        frame = cv2.flip(frame, 1)   # только горизонтально
 
             # Create VideoFrame
             video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
