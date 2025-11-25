@@ -205,6 +205,23 @@ function setupCameraButton(buttonId, panDelta, tiltDelta) {
   });
 }
 
+// Закрытие соединений при выходе со страницы
+window.addEventListener("beforeunload", () => {
+  console.log("[CLEANUP] Closing connections...");
+
+  // Закрываем WebRTC
+  if (pc) {
+    pc.close();
+    console.log("[CLEANUP] WebRTC closed");
+  }
+
+  // Закрываем WebSocket
+  if (ws) {
+    ws.close();
+    console.log("[CLEANUP] WebSocket closed");
+  }
+});
+
 window.addEventListener("load", async () => {
   videoEl.addEventListener("click", async () => {
     if (!autoplayResolved) {

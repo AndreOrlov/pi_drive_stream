@@ -28,6 +28,8 @@ _peer_connections: set[RTCPeerConnection] = set()
 async def _run_peer_connection(pc: RTCPeerConnection) -> None:
     """Keep peer connection alive until it closes."""
 
+    disconnected_time = None
+
     @pc.on("connectionstatechange")
     async def on_connectionstatechange() -> None:
         print(f"[WEBRTC] Peer connection state changed: {pc.connectionState}")
@@ -39,7 +41,32 @@ async def _run_peer_connection(pc: RTCPeerConnection) -> None:
 
     @pc.on("iceconnectionstatechange")
     async def on_iceconnectionstatechange() -> None:
+        nonlocal disconnected_time
         print(f"[WEBRTC] ICE connection state changed: {pc.iceConnectionState}")
+
+        if pc.iceConnectionState in ("disconnected", "failed"):
+            if disconnected_time is None:
+                disconnected_time = asyncio.get_event_loop().time()
+                print(f"[WEBRTC] Connection lost, will cleanup in 5 seconds if not recovered")
+        elif pc.iceConnectionState == "connected":
+            disconnected_time = None  # Восстановилось
+
+    # Мониторинг неактивных соединений
+    try:
+        while pc.connectionState not in ("closed", "failed"):
+            await asyncio.sleep(1)
+
+            # Если соединение disconnected больше 5 секунд, принудительно закрываем
+            if disconnected_time is not None:
+                elapsed = asyncio.get_event_loop().time() - disconnected_time
+                if elapsed > 5.0:
+                    print(f"[WEBRTC] Force closing stale connection (disconnected for {elapsed:.1f}s)")
+                    _peer_connections.discard(pc)
+                    await pc.close()
+                    print(f"[WEBRTC] Active peer connections: {len(_peer_connections)}")
+                    break
+    except Exception as e:
+        print(f"[WEBRTC] Error in peer connection monitor: {e}")
 
 
 @app.on_event("startup")
