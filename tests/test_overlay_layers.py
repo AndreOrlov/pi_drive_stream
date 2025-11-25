@@ -18,7 +18,6 @@ def test_crosshair_layer_renders() -> None:
 
 def test_crosshair_layer_disabled() -> None:
     """Отключенный прицел не меняет кадр."""
-    frame = np.zeros((480, 640, 3), dtype=np.uint8)
     layer = CrosshairLayer(enabled=False)
 
     # Рендерер должен проверять enabled, но слой сам не проверяет
