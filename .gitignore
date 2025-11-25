@@ -4,6 +4,7 @@ __pycache__/
 *.pyd
 
 .env
+.cursor/
 .venv/
 venv/
 .env.*
