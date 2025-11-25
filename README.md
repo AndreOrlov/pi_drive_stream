@@ -135,6 +135,10 @@ pip install pigpio
 7. **Run the server:**
 
 ```bash
+# Quick start (recommended)
+./start.sh
+
+# Or manually
 python main.py
 ```
 
@@ -159,6 +163,10 @@ pip install -r requirements.txt
 2. **Run:**
 
 ```bash
+# Quick start
+./start.sh
+
+# Or manually
 python main.py
 ```
 
@@ -185,6 +193,7 @@ pi_drive_stream/
 │   ├── index.html          # Web UI (Tailwind CSS, responsive)
 │   └── main.js             # WebRTC client, controls
 ├── main.py                 # Entry point
+├── start.sh                # Quick start script
 ├── requirements.txt        # Python dependencies
 └── CONFIG.md               # Configuration guide
 ```
@@ -373,6 +382,20 @@ Check servo connections:
 - Signal (orange/yellow/white wire) → GPIO pin
 
 ## Development
+
+### Quick Start Script
+
+The project includes `start.sh` for convenient one-command launch:
+
+```bash
+./start.sh
+```
+
+**Features:**
+- ✅ Automatically activates virtual environment
+- ✅ Checks if pigpiod is running (on Raspberry Pi)
+- ✅ Shows helpful warnings if setup is incomplete
+- ✅ Starts the server with proper error handling
 
 ### Running with auto-reload
 
