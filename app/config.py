@@ -32,7 +32,7 @@ class VideoConfig(BaseModel):
 
     # Трансформации изображения
     flip_horizontal: bool = Field(False, description="Горизонтальное отражение (зеркало)")
-    flip_vertical: bool = Field(False, description="Вертикальное отражение (переворот)")
+    flip_vertical: bool = Field(True, description="Вертикальное отражение (переворот)")
 
 
 class CameraConfig(BaseModel):
