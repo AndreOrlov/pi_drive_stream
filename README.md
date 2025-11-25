@@ -198,6 +198,10 @@ pi_drive_stream/
 ├── frontend/
 │   ├── index.html          # Web UI (Tailwind CSS, responsive)
 │   └── main.js             # WebRTC client, controls
+├── tests/
+│   ├── test_overlay_layers.py  # OSD layers tests
+│   ├── test_cv_renderer.py     # Renderer tests
+│   └── test_config.py          # Configuration tests
 ├── main.py                 # Entry point
 ├── start.sh                # Quick start script
 ├── requirements.txt        # Python dependencies
@@ -445,6 +449,33 @@ logging.basicConfig(level=logging.DEBUG)
 # On Raspberry Pi
 rpicam-vid -t 10000 --inline -o test.h264
 ```
+
+### Running tests
+
+The project includes comprehensive unit tests for the OSD system:
+
+```bash
+# Install pytest (if not already installed)
+pip install pytest
+
+# Run all tests
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_overlay_layers.py -v
+
+# Run with coverage (optional)
+pip install pytest-cov
+pytest tests/ --cov=app/overlay --cov-report=term-missing
+```
+
+**Test coverage:**
+- OSD layers (crosshair, telemetry, warnings)
+- OpenCV renderer
+- Configuration validation
+- Multiple resolutions support
+
+All tests run without hardware dependencies (no camera or GPIO required).
 
 ## Future Plans
 
