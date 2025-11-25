@@ -296,6 +296,15 @@ camera=CameraConfig(
 )
 ```
 
+**Переворот изображения (если камера установлена вверх ногами):**
+```python
+# app/config.py
+video=VideoConfig(
+    flip_vertical=True,
+    flip_horizontal=True
+)
+```
+
 Configuration is loaded via `/api/config` endpoint and synced with frontend automatically.
 
 ## Network Access

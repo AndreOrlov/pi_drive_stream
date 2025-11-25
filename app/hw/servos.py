@@ -5,15 +5,23 @@ Manages pan/tilt servos for camera positioning.
 
 from app.config import config
 from app.messages import CameraCommand
-import pigpio
 from typing import Optional
 
-_pi: Optional[pigpio.pi] = None
+try:
+    import pigpio  # type: ignore[import-not-found]
+    PIGPIO_AVAILABLE = True
+except ImportError:
+    pigpio = None  # type: ignore[assignment]
+    PIGPIO_AVAILABLE = False
+
+_pi: Optional[object] = None
 
 
-def _get_pi() -> pigpio.pi:
+def _get_pi():
     """Ленивая инициализация pigpio"""
     global _pi
+    if not PIGPIO_AVAILABLE or pigpio is None:
+        raise RuntimeError("pigpio is not available on this platform")
     if _pi is None:
         _pi = pigpio.pi()
         if not _pi.connected:
@@ -24,10 +32,13 @@ def _get_pi() -> pigpio.pi:
 async def apply_camera_command(cmd: CameraCommand) -> None:
     """
     Apply camera servo command.
-    
+
     Args:
         cmd: CameraCommand with pan/tilt values (-1.0 to 1.0)
     """
+    if not PIGPIO_AVAILABLE:
+        return
+
     cfg = config.camera
     pi = _get_pi()  # Получаем экземпляр pigpio
 
@@ -54,6 +65,8 @@ async def apply_camera_command(cmd: CameraCommand) -> None:
 def cleanup_servo():
     """Освобождение ресурсов при выключении"""
     global _pi
+    if not PIGPIO_AVAILABLE:
+        return
     if _pi is not None:
         cfg = config.camera
         # Отключаем PWM (серво перестанут держать позицию)
@@ -61,4 +74,3 @@ def cleanup_servo():
         _pi.set_servo_pulsewidth(cfg.tilt_gpio_pin, 0)
         _pi.stop()
         _pi = None
-
