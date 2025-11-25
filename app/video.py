@@ -18,6 +18,14 @@ from app.overlay.layers import CrosshairLayer, TelemetryLayer, WarningLayer
 
 logger = logging.getLogger(__name__)
 
+# Логируем при загрузке модуля, чтобы убедиться что новый код загружен
+print("=" * 60)
+print("[VIDEO] MODULE LOADED - VERSION WITH SHARED TRACK & MONOTONIC PTS")
+print("=" * 60)
+logger.info("=" * 60)
+logger.info("VIDEO MODULE LOADED - VERSION WITH SHARED TRACK")
+logger.info("=" * 60)
+
 try:
     import libcamera  # type: ignore[import-not-found]
     from picamera2 import Picamera2  # type: ignore[import-not-found]
@@ -81,7 +89,8 @@ class CameraVideoTrack(MediaStreamTrack):
         self._picam2: Picamera2 | None = None  # type: ignore[name-defined]
         self._cap: cv2.VideoCapture | None = None
 
-        logger.info("Initializing CameraVideoTrack (id=%s)", id(self))
+        print(f"[VIDEO] >>> Initializing CameraVideoTrack (id={id(self)}) <<<")
+        logger.info(">>> Initializing CameraVideoTrack (id=%s) <<<", id(self))
 
         if PICAMERA2_AVAILABLE and config.video.use_picamera2:
             try:
@@ -126,6 +135,7 @@ class CameraVideoTrack(MediaStreamTrack):
             # Initialize start time on first frame
             if self._start_time is None:
                 self._start_time = loop_start
+                logger.info(">>> FIRST FRAME: Starting video stream with monotonic PTS <<<")
 
             # Используем монотонный счётчик кадров для PTS вместо wall clock
             # Это предотвращает дрейф и накопление задержки в WebRTC буферах
@@ -137,11 +147,9 @@ class CameraVideoTrack(MediaStreamTrack):
                 elapsed = loop_start - self._start_time
                 wall_clock_pts = int(elapsed * config.video.pts_clock_hz)
                 pts_drift_ms = (wall_clock_pts - pts) / config.video.pts_clock_hz * 1000
-                logger.info(
-                    "PTS drift check: frame=%d, wall_clock_drift=%.1f ms",
-                    self._frame_count,
-                    pts_drift_ms,
-                )
+                msg = f"PTS drift check: frame={self._frame_count}, wall_clock_drift={pts_drift_ms:.1f} ms"
+                print(f"[VIDEO] {msg}")
+                logger.info(msg)
 
             self._frame_count += 1
 
@@ -226,14 +234,21 @@ async def create_peer_connection() -> RTCPeerConnection:
     # Создаём единственный camera track при первом подключении
     with _camera_track_lock:
         if _camera_track is None:
-            logger.info("Creating shared CameraVideoTrack for all clients")
+            print("[VIDEO] === Creating SHARED CameraVideoTrack for ALL clients ===")
+            logger.info("=== Creating SHARED CameraVideoTrack for ALL clients ===")
             _camera_track = CameraVideoTrack()
+        else:
+            print("[VIDEO] === Reusing existing CameraVideoTrack (shared mode active) ===")
+            logger.info("=== Reusing existing CameraVideoTrack (shared mode active) ===")
 
     pc = RTCPeerConnection()
 
     # MediaRelay раздаёт один и тот же поток всем клиентам
     video_track = _relay.subscribe(_camera_track)
     pc.addTrack(video_track)
+
+    print(f"[VIDEO] === Client connected to shared video track (track_id={id(_camera_track)}) ===")
+    logger.info("=== Client connected to shared video track (track_id=%s) ===", id(_camera_track))
 
     logger.info("Client connected to shared video track")
 

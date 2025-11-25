@@ -11,9 +11,30 @@ async function startWebRTC() {
   videoEl.autoplay = true;
   videoEl.playsInline = true;
 
+  // Минимизация задержки для live-стрима
+  // https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement
+  if ('latencyHint' in videoEl) {
+    videoEl.latencyHint = 0;  // Минимальная задержка
+  }
+  // Альтернативный способ для Chrome/Edge
+  if ('setSinkId' in videoEl) {
+    // Отключаем буферизацию для минимальной задержки
+    videoEl.preload = 'none';
+  }
+
   pc.ontrack = (event) => {
     const [stream] = event.streams;
     videoEl.srcObject = stream;
+
+    // Минимизация задержки: отключаем jitter buffer
+    if (stream.getVideoTracks().length > 0) {
+      const videoTrack = stream.getVideoTracks()[0];
+      // Устанавливаем минимальную задержку для live-стрима
+      if ('jitterBufferTarget' in videoTrack) {
+        videoTrack.jitterBufferTarget = 0;  // Минимальный буфер
+      }
+    }
+
     const safePlay = async () => {
       try {
         await videoEl.play();
