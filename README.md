@@ -49,8 +49,23 @@ sudo apt install -y python3-opencv libavformat-dev libavcodec-dev libavdevice-de
 
 3. **Install pigpio for servo control:**
 
+If pigpio is not available in your repositories, install from source:
+
 ```bash
-sudo apt install -y pigpio python3-pigpio
+# Download and install pigpio daemon and library
+wget https://github.com/joan2937/pigpio/archive/master.zip
+unzip master.zip
+cd pigpio-master
+make
+sudo make install
+cd ..
+rm -rf pigpio-master master.zip
+```
+
+Alternatively, if available in repos (Raspberry Pi OS Bookworm and newer):
+
+```bash
+sudo apt install -y pigpio
 ```
 
 4. **Enable pigpiod daemon auto-start:**
@@ -77,10 +92,11 @@ python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
 ```
 
-6. **Install Python dependencies:**
+6. **Install Python dependencies (including pigpio):**
 
 ```bash
 pip install -r requirements.txt
+pip install pigpio
 ```
 
 7. **Run the server:**
@@ -306,7 +322,7 @@ sudo systemctl enable pigpiod
 
 Check servo connections:
 - Pan servo → GPIO 17 (physical pin 11)
-- Tilt servo → GPIO 18 (physical pin 12) 
+- Tilt servo → GPIO 18 (physical pin 12)
 - Verify power supply (servos need 5V, not 3.3V)
 
 ## Development
