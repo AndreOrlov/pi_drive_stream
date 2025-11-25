@@ -31,6 +31,8 @@ except ImportError:  # pragma: no cover - not available on non-RPi dev machines
 _picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
 _picam2_lock = threading.Lock()
 _relay: MediaRelay | None = None
+_camera_track: Optional["CameraVideoTrack"] = None
+_camera_track_lock = threading.Lock()
 
 
 def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
@@ -79,10 +81,13 @@ class CameraVideoTrack(MediaStreamTrack):
         self._picam2: Picamera2 | None = None  # type: ignore[name-defined]
         self._cap: cv2.VideoCapture | None = None
 
+        logger.info("Initializing CameraVideoTrack (id=%s)", id(self))
+
         if PICAMERA2_AVAILABLE and config.video.use_picamera2:
             try:
                 self._picam2 = _ensure_picamera2()
                 self._use_picamera2 = True
+                logger.info("Using Picamera2 for video capture")
             except Exception as exc:  # pragma: no cover - runtime-only on RPi
                 logger.error(
                     "Failed to initialize Picamera2, falling back to OpenCV: %s", exc
@@ -94,6 +99,8 @@ class CameraVideoTrack(MediaStreamTrack):
                 logger.error(
                     "Failed to open camera at index %s", config.video.camera_index
                 )
+            else:
+                logger.info("Using OpenCV VideoCapture for video capture")
         self._frame_count = 0
 
         # Инициализация OSD рендерера
@@ -206,19 +213,28 @@ class CameraVideoTrack(MediaStreamTrack):
 
 
 async def create_peer_connection() -> RTCPeerConnection:
-    """Create RTCPeerConnection with camera video track"""
-    global _relay
+    """Create RTCPeerConnection with camera video track.
+
+    Переиспользует один CameraVideoTrack для всех клиентов через MediaRelay,
+    чтобы избежать множественного захвата камеры и перегрузки CPU.
+    """
+    global _relay, _camera_track
 
     if _relay is None:
         _relay = MediaRelay()
 
+    # Создаём единственный camera track при первом подключении
+    with _camera_track_lock:
+        if _camera_track is None:
+            logger.info("Creating shared CameraVideoTrack for all clients")
+            _camera_track = CameraVideoTrack()
+
     pc = RTCPeerConnection()
 
-    # Create camera track
-    camera_track = CameraVideoTrack()
-
-    # Use MediaRelay to handle the track
-    video_track = _relay.subscribe(camera_track)
+    # MediaRelay раздаёт один и тот же поток всем клиентам
+    video_track = _relay.subscribe(_camera_track)
     pc.addTrack(video_track)
+
+    logger.info("Client connected to shared video track")
 
     return pc
