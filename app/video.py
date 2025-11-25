@@ -19,10 +19,12 @@ try:
     from picamera2 import Picamera2, Transform  # type: ignore[import-not-found]
 
     PICAMERA2_AVAILABLE = True
+    print("[VIDEO MODULE] Picamera2 imported successfully")
 except ImportError:  # pragma: no cover - not available on non-RPi dev machines
     Picamera2 = None  # type: ignore[assignment]
     Transform = None  # type: ignore[assignment]
     PICAMERA2_AVAILABLE = False
+    print("[VIDEO MODULE] Picamera2 not available, will use OpenCV")
 
 
 _picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
@@ -42,6 +44,7 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
 
     with _picam2_lock:
         if _picam2 is None:
+            print("[VIDEO] Initializing global Picamera2 instance")
             logger.info("Initializing global Picamera2 instance")
             cam = Picamera2()  # type: ignore[call-arg]
 
@@ -52,6 +55,7 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
 
             # Добавляем transform только если он доступен и нужен
             if Transform is not None and (config.video.flip_horizontal or config.video.flip_vertical):
+                print(f"[VIDEO] Applying transform: hflip={config.video.flip_horizontal}, vflip={config.video.flip_vertical}")
                 logger.info(f"Applying transform: hflip={config.video.flip_horizontal}, vflip={config.video.flip_vertical}")
                 transform = Transform(
                     hflip=config.video.flip_horizontal,
@@ -59,14 +63,18 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
                 )
                 config_params["transform"] = transform
 
+            print(f"[VIDEO] Creating camera configuration")
             logger.info(f"Creating camera configuration with params: {config_params}")
             cam_config = cam.create_preview_configuration(**config_params)
             cam.configure(cam_config)
+            print("[VIDEO] Starting camera...")
             logger.info("Starting camera...")
             cam.start()
             _picam2 = cam
+            print("[VIDEO] Picamera2 started successfully")
             logger.info("Picamera2 started successfully")
         else:
+            print("[VIDEO] Reusing existing Picamera2 instance")
             logger.info("Reusing existing Picamera2 instance")
 
         return _picam2
@@ -77,6 +85,7 @@ class CameraVideoTrack(MediaStreamTrack):
 
     def __init__(self) -> None:
         super().__init__()
+        print(f"[VIDEO] CameraVideoTrack.__init__() called. PICAMERA2_AVAILABLE={PICAMERA2_AVAILABLE}, use_picamera2={config.video.use_picamera2}")
         self._lock = asyncio.Lock()
         self._counter = 0
         self._start_time = None
@@ -87,19 +96,25 @@ class CameraVideoTrack(MediaStreamTrack):
 
         if PICAMERA2_AVAILABLE and config.video.use_picamera2:
             try:
+                print("[VIDEO] Attempting to initialize Picamera2...")
                 logger.info("Attempting to initialize Picamera2...")
                 self._picam2 = _ensure_picamera2()
                 self._use_picamera2 = True
+                print("[VIDEO] Picamera2 initialized successfully")
                 logger.info("Picamera2 initialized successfully")
             except Exception as exc:  # pragma: no cover - runtime-only on RPi
+                print(f"[VIDEO] Failed to initialize Picamera2: {exc}")
                 logger.error("Failed to initialize Picamera2, falling back to OpenCV: %s", exc)
                 import traceback
+                traceback.print_exc()
                 logger.error(traceback.format_exc())
 
         if not self._use_picamera2:
+            print("[VIDEO] Using OpenCV VideoCapture as fallback")
             logger.info("Using OpenCV VideoCapture as fallback")
             self._cap = cv2.VideoCapture(config.video.camera_index)
             if not self._cap.isOpened():
+                print(f"[VIDEO] Failed to open camera at index {config.video.camera_index}")
                 logger.error("Failed to open camera at index %s", config.video.camera_index)
         self._frame_count = 0
 
@@ -166,18 +181,24 @@ class CameraVideoTrack(MediaStreamTrack):
 
 async def create_peer_connection() -> RTCPeerConnection:
     """Create RTCPeerConnection with camera video track"""
+    print("[VIDEO] create_peer_connection() called")
     global _relay
 
     if _relay is None:
         _relay = MediaRelay()
+        print("[VIDEO] MediaRelay created")
 
     pc = RTCPeerConnection()
+    print("[VIDEO] RTCPeerConnection created")
 
     # Create camera track
+    print("[VIDEO] Creating CameraVideoTrack...")
     camera_track = CameraVideoTrack()
+    print("[VIDEO] CameraVideoTrack created")
 
     # Use MediaRelay to handle the track
     video_track = _relay.subscribe(camera_track)
     pc.addTrack(video_track)
+    print("[VIDEO] Track added to peer connection")
 
     return pc
