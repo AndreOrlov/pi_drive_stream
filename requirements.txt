@@ -4,5 +4,4 @@ aiortc
 av
 opencv-python
 pydantic
-
-
+pydantic-settings

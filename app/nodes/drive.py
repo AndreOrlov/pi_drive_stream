@@ -2,13 +2,15 @@ import asyncio
 import time
 
 from app import event_bus
+from app.config import config
 from app.hw.motors_stub import apply_drive_command
 from app.messages import DriveCommand, DriveMode
 
 
 class DriveNode:
-    def __init__(self, timeout_s: float = 0.5) -> None:
-        self.timeout_s = timeout_s
+    def __init__(self) -> None:
+        self.timeout_s = config.drive.timeout_s
+        self.watchdog_interval_s = config.drive.watchdog_interval_s
         self._last_cmd_time = time.monotonic()
 
     async def start(self) -> None:
@@ -26,9 +28,7 @@ class DriveNode:
 
     async def _watchdog(self) -> None:
         while True:
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(self.watchdog_interval_s)
             if time.monotonic() - self._last_cmd_time > self.timeout_s:
                 safe_cmd = DriveCommand(vx=0.0, steer=0.0, mode=DriveMode.EMERGENCY_STOP)
                 await apply_drive_command(safe_cmd)
-
-

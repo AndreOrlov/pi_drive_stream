@@ -6,7 +6,10 @@ Remote-controlled car with video streaming based on Raspberry Pi 5.
 
 - **Low-latency video streaming** via WebRTC
 - **Real-time control** over WebSocket
+- **Camera control** with D-Pad interface (pan/tilt servos ready)
 - **Emergency stop** functionality
+- **Centralized configuration** system with validation
+- **Responsive design** — mobile-friendly interface (Tailwind CSS)
 - **Ready for ROS2 migration** — modular architecture with event bus
 
 ## Hardware Requirements
@@ -18,10 +21,11 @@ Remote-controlled car with video streaming based on Raspberry Pi 5.
 
 ## Software Stack
 
-- **Backend:** Python 3.13, FastAPI, aiortc
+- **Backend:** Python 3.13, FastAPI, aiortc, Pydantic
 - **Video:** Picamera2 (libcamera), WebRTC
-- **Frontend:** Vanilla JS, WebRTC API
+- **Frontend:** Vanilla JS, WebRTC API, Tailwind CSS
 - **Control:** WebSocket, event-driven architecture
+- **Config:** Centralized configuration with validation
 
 ## Installation
 
@@ -94,6 +98,7 @@ The app will fall back to OpenCV camera (built-in webcam) if Picamera2 is not av
 pi_drive_stream/
 ├── app/
 │   ├── bus.py              # Event bus (mini-ROS pub/sub)
+│   ├── config.py           # Centralized configuration (Pydantic)
 │   ├── messages.py         # Message types (DriveCommand, CameraCommand, etc.)
 │   ├── video.py            # WebRTC video streaming with Picamera2
 │   ├── nodes/
@@ -104,10 +109,11 @@ pi_drive_stream/
 │   └── web/
 │       └── server.py       # FastAPI server, WebSocket, WebRTC signaling
 ├── frontend/
-│   ├── index.html          # Web UI
+│   ├── index.html          # Web UI (Tailwind CSS, responsive)
 │   └── main.js             # WebRTC client, controls
 ├── main.py                 # Entry point
-└── requirements.txt        # Python dependencies
+├── requirements.txt        # Python dependencies
+└── CONFIG.md               # Configuration guide
 ```
 
 ## Architecture
@@ -139,11 +145,20 @@ Camera (Picamera2) → CameraVideoTrack → MediaRelay → WebRTC → Browser
 - **Space** — Emergency Stop
 
 ### Touch/Click (current)
+
+#### Drive Control
 - **Forward** — Drive forward at full speed
 - **Backward** — Reverse at full speed
 - **Left** — Turn left at half speed
 - **Right** — Turn right at half speed
 - **STOP** — Emergency stop
+
+#### Camera Control (D-Pad)
+- **▲/▼** — Tilt camera up/down
+- **◀/▶** — Pan camera left/right
+- **●** (HOME) — Reset camera to center
+- **Click** — Discrete step movement
+- **Hold** — Continuous smooth movement
 
 ### Gamepad (planned)
 - Left stick — steering
@@ -158,19 +173,48 @@ Camera (Picamera2) → CameraVideoTrack → MediaRelay → WebRTC → Browser
 
 ## Configuration
 
-Edit `app/web/server.py` to change:
+All settings are centralized in `app/config.py` using Pydantic for validation.
 
+See **[CONFIG.md](CONFIG.md)** for complete configuration guide.
+
+### Quick Examples
+
+**Change video resolution (for low-power Pi):**
 ```python
-drive_node = DriveNode(timeout_s=0.5)  # Command timeout
-```
-
-Edit `app/video.py` to change camera resolution:
-
-```python
-config = cam.create_preview_configuration(
-    main={"format": "RGB888", "size": (640, 480)}  # Resolution
+# app/config.py
+video=VideoConfig(
+    width=320,
+    height=240,
+    fps=15
 )
 ```
+
+**Change server port:**
+```python
+# app/config.py
+server=ServerConfig(
+    port=8080
+)
+```
+
+**Disable camera control logging:**
+```python
+# app/config.py
+camera=CameraConfig(
+    enable_logging=False
+)
+```
+
+**Invert camera axes (if servos mounted backwards):**
+```python
+# app/config.py
+camera=CameraConfig(
+    invert_pan=True,
+    invert_tilt=False
+)
+```
+
+Configuration is loaded via `/api/config` endpoint and synced with frontend automatically.
 
 ## Network Access
 
@@ -244,7 +288,8 @@ rpicam-vid -t 10000 --inline -o test.h264
 ## Future Plans
 
 - [ ] Real motor control (GPIO/PWM via `pigpio` or `lgpio`)
-- [ ] Camera servo control (pan/tilt)
+- [x] Camera control UI (D-Pad interface)
+- [ ] Camera servo hardware integration (pan/tilt with SG90)
 - [ ] Telemetry overlay on video (battery, FPS, signal strength)
 - [ ] Gamepad support (Gamepad API)
 - [ ] Recording to file
