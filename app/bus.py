@@ -1,6 +1,7 @@
 import asyncio
 from collections import defaultdict
-from typing import Any, Callable, Coroutine, Dict, List, TypeVar
+from collections.abc import Callable, Coroutine
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 Handler = Callable[[T], Coroutine[Any, Any, None]]
@@ -8,7 +9,7 @@ Handler = Callable[[T], Coroutine[Any, Any, None]]
 
 class EventBus:
     def __init__(self) -> None:
-        self._subscribers: Dict[str, List[Handler[Any]]] = defaultdict(list)
+        self._subscribers: dict[str, list[Handler[Any]]] = defaultdict(list)
         self._lock = asyncio.Lock()
 
     async def subscribe(self, topic: str, handler: Handler[T]) -> None:

@@ -3,9 +3,9 @@ Camera servo control via pigpio.
 Manages pan/tilt servos for camera positioning.
 """
 
+
 from app.config import config
 from app.messages import CameraCommand
-from typing import Optional
 
 try:
     import pigpio  # type: ignore[import-not-found]
@@ -14,7 +14,7 @@ except ImportError:
     pigpio = None  # type: ignore[assignment]
     PIGPIO_AVAILABLE = False
 
-_pi: Optional[object] = None
+_pi: object | None = None
 
 
 def _get_pi():

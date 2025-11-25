@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Any, Dict, Set
+from typing import Any
 
 from aiortc import RTCPeerConnection, RTCSessionDescription
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -22,7 +22,7 @@ drive_node = DriveNode()
 camera_node = CameraNode()
 
 # Keep peer connections alive
-_peer_connections: Set[RTCPeerConnection] = set()
+_peer_connections: set[RTCPeerConnection] = set()
 
 
 async def _run_peer_connection(pc: RTCPeerConnection) -> None:
@@ -46,7 +46,7 @@ async def on_startup() -> None:
 
 
 @app.get("/health")
-async def health() -> Dict[str, str]:
+async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
@@ -56,7 +56,7 @@ async def index() -> FileResponse:
 
 
 @app.get("/api/config")
-async def get_config() -> Dict[str, Any]:
+async def get_config() -> dict[str, Any]:
     """Получить конфигурацию для фронтенда"""
     return {
         "camera": {
@@ -83,7 +83,7 @@ class Offer(BaseModel):
 
 
 @app.post("/webrtc/offer")
-async def webrtc_offer(offer: Offer) -> Dict[str, Any]:
+async def webrtc_offer(offer: Offer) -> dict[str, Any]:
     pc: RTCPeerConnection = await create_peer_connection()
 
     # Store PC to keep it alive
