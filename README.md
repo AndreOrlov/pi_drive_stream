@@ -47,26 +47,98 @@ sudo apt install -y python3-picamera2 python3-libcamera libcamera-apps
 sudo apt install -y python3-opencv libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libswscale-dev libavfilter-dev
 ```
 
-3. **Create virtual environment with system packages:**
+3. **Install pigpio for servo control:**
+
+If pigpio is not available in your repositories, install from source:
+
+```bash
+# Download and install pigpio daemon and library
+wget https://github.com/joan2937/pigpio/archive/master.zip
+unzip master.zip
+cd pigpio-master
+make
+sudo make install
+cd ..
+rm -rf pigpio-master master.zip
+```
+
+Alternatively, if available in repos (Raspberry Pi OS Bookworm and newer):
+
+```bash
+sudo apt install -y pigpio
+```
+
+4. **Enable pigpiod daemon auto-start:**
+
+The pigpiod daemon must be running for servo control to work.
+
+**If installed from source**, create systemd service:
+
+```bash
+# Create systemd unit file
+sudo tee /etc/systemd/system/pigpiod.service > /dev/null << 'EOF'
+[Unit]
+Description=Pigpio daemon
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/pigpiod
+ExecStop=/bin/systemctl kill pigpiod
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Reload systemd and enable
+sudo systemctl daemon-reload
+sudo systemctl enable pigpiod
+sudo systemctl start pigpiod
+```
+
+**If installed from apt**, simply enable:
+
+```bash
+sudo systemctl enable pigpiod
+sudo systemctl start pigpiod
+```
+
+Check daemon status:
+
+```bash
+sudo systemctl status pigpiod
+```
+
+You should see "active (running)" in the output.
+
+**Alternative: Manual start** (without systemd):
+
+```bash
+sudo pigpiod
+```
+
+5. **Create virtual environment with system packages:**
 
 ```bash
 python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
 ```
 
-4. **Install Python dependencies:**
+6. **Install Python dependencies (including pigpio):**
 
 ```bash
 pip install -r requirements.txt
+pip install pigpio
 ```
 
-5. **Run the server:**
+7. **Run the server:**
 
 ```bash
 python main.py
 ```
 
-6. **Open in browser:**
+8. **Open in browser:**
 
 ```
 http://<raspberry-pi-ip>:8000
@@ -105,7 +177,8 @@ pi_drive_stream/
 │   │   ├── drive.py        # Drive control node (with timeout safety)
 │   │   └── camera.py       # Camera control node
 │   ├── hw/
-│   │   └── motors_stub.py  # Motor control stubs (TODO: GPIO/PWM)
+│   │   ├── servos.py       # Camera servo control (pigpio implementation)
+│   │   └── motors_stub.py  # Drive motor control stub (TODO: GPIO/PWM)
 │   └── web/
 │       └── server.py       # FastAPI server, WebSocket, WebRTC signaling
 ├── frontend/
@@ -261,6 +334,44 @@ pkill -9 rpicam
 - Check network bandwidth
 - Disable other services on Pi
 
+### Servo not moving / "Cannot connect to pigpiod"
+
+Make sure the pigpiod daemon is running:
+
+```bash
+sudo systemctl status pigpiod
+```
+
+If systemd service doesn't exist (installed from source):
+
+```bash
+# Start manually
+sudo pigpiod
+
+# Or create systemd service (see installation section)
+```
+
+If service exists but not running:
+
+```bash
+sudo systemctl start pigpiod
+sudo systemctl enable pigpiod  # enable auto-start on boot
+```
+
+Check if daemon is actually running:
+
+```bash
+pgrep pigpiod  # should return a process ID
+```
+
+Check servo connections:
+- Pan servo → GPIO 17 (physical pin 11)
+- Tilt servo → GPIO 18 (physical pin 12)
+- Verify power supply (servos need 5V, not 3.3V)
+- Common (brown/black wire) → GND
+- Power (red wire) → 5V
+- Signal (orange/yellow/white wire) → GPIO pin
+
 ## Development
 
 ### Running with auto-reload
@@ -289,7 +400,7 @@ rpicam-vid -t 10000 --inline -o test.h264
 
 - [ ] Real motor control (GPIO/PWM via `pigpio` or `lgpio`)
 - [x] Camera control UI (D-Pad interface)
-- [ ] Camera servo hardware integration (pan/tilt with SG90)
+- [x] Camera servo hardware integration (pan/tilt with pigpio on GPIO 18)
 - [ ] Telemetry overlay on video (battery, FPS, signal strength)
 - [ ] Gamepad support (Gamepad API)
 - [ ] Recording to file

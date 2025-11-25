@@ -1,5 +1,5 @@
 from app import event_bus
-from app.hw.motors_stub import apply_camera_command
+from app.hw.servos import apply_camera_command
 from app.messages import CameraCommand
 
 
@@ -9,5 +9,3 @@ class CameraNode:
 
     async def _on_camera_cmd(self, cmd: CameraCommand) -> None:
         await apply_camera_command(cmd)
-
-
