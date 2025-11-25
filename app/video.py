@@ -20,11 +20,14 @@ try:
 
     PICAMERA2_AVAILABLE = True
     print("[VIDEO MODULE] Picamera2 imported successfully")
-except ImportError:  # pragma: no cover - not available on non-RPi dev machines
+except ImportError as e:  # pragma: no cover - not available on non-RPi dev machines
     Picamera2 = None  # type: ignore[assignment]
     Transform = None  # type: ignore[assignment]
     PICAMERA2_AVAILABLE = False
-    print("[VIDEO MODULE] Picamera2 not available, will use OpenCV")
+    print(f"[VIDEO MODULE] Picamera2 not available: {e}")
+    print(f"[VIDEO MODULE] sys.path: {__import__('sys').path}")
+    import traceback
+    traceback.print_exc()
 
 
 _picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
