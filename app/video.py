@@ -12,6 +12,8 @@ from aiortc.contrib.media import MediaRelay
 from av import VideoFrame
 
 from app.config import config
+from app.overlay import CvOverlayRenderer
+from app.overlay.layers import CrosshairLayer, TelemetryLayer, WarningLayer
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +87,21 @@ class CameraVideoTrack(MediaStreamTrack):
                 logger.error("Failed to open camera at index %s", config.video.camera_index)
         self._frame_count = 0
 
+        # Инициализация OSD рендерера
+        self._overlay_renderer: Optional[CvOverlayRenderer] = None
+        if config.overlay.enabled:
+            layers = []
+            if config.overlay.crosshair:
+                layers.append(CrosshairLayer())
+            if config.overlay.telemetry:
+                layers.append(TelemetryLayer())
+            if config.overlay.warnings:
+                layers.append(WarningLayer())
+
+            if layers:
+                self._overlay_renderer = CvOverlayRenderer(layers)
+                logger.info("OSD renderer initialized with %d layers", len(layers))
+
     async def recv(self) -> VideoFrame:
         try:
             # Initialize start time on first frame
@@ -118,6 +135,10 @@ class CameraVideoTrack(MediaStreamTrack):
                         frame = cv2.flip(frame, 0)   # только вертикально
                     elif config.video.flip_horizontal:
                         frame = cv2.flip(frame, 1)   # только горизонтально
+
+            # Отрисовка OSD
+            if self._overlay_renderer is not None:
+                self._overlay_renderer.draw(frame)
 
             # Create VideoFrame
             video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
