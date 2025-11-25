@@ -53,7 +53,9 @@ def test_warning_layer_renders() -> None:
         (1080, 1920, 3),  # Большое
     ],
 )
-def test_layers_work_with_different_resolutions(resolution: tuple[int, int, int]) -> None:
+def test_layers_work_with_different_resolutions(
+    resolution: tuple[int, int, int],
+) -> None:
     """Все слои работают с разными разрешениями."""
     frame = np.zeros(resolution, dtype=np.uint8)
 
@@ -65,7 +67,9 @@ def test_layers_work_with_different_resolutions(resolution: tuple[int, int, int]
 
     for layer in layers:
         layer.render(frame)
-        assert frame.sum() > 0, f"{layer.__class__.__name__} должен работать с {resolution}"
+        assert frame.sum() > 0, (
+            f"{layer.__class__.__name__} должен работать с {resolution}"
+        )
 
 
 def test_crosshair_layer_custom_parameters() -> None:

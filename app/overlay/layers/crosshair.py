@@ -60,8 +60,22 @@ class CrosshairLayer(Layer):
         v_end = (center_x, center_y + self.size)
 
         # Рисуем обводку (чёрную, толще)
-        cv2.line(frame, h_start, h_end, self.outline_color, self.outline_thickness, cv2.LINE_AA)
-        cv2.line(frame, v_start, v_end, self.outline_color, self.outline_thickness, cv2.LINE_AA)
+        cv2.line(
+            frame,
+            h_start,
+            h_end,
+            self.outline_color,
+            self.outline_thickness,
+            cv2.LINE_AA,
+        )
+        cv2.line(
+            frame,
+            v_start,
+            v_end,
+            self.outline_color,
+            self.outline_thickness,
+            cv2.LINE_AA,
+        )
 
         # Рисуем основные линии (белые, тоньше)
         cv2.line(frame, h_start, h_end, self.color, self.thickness, cv2.LINE_AA)

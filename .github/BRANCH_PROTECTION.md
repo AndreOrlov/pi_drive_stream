@@ -45,7 +45,7 @@
 
 **Protect matching branches:**
 - ✅ **Require a pull request before merging**
-  - Require approvals: **0** (можно мержить свои PR)
+  - Require approvals: **1**
   - Dismiss stale pull request approvals when new commits are pushed
 
 - ✅ **Require status checks to pass before merging**

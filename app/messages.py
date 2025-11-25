@@ -25,5 +25,3 @@ class RobotState:
     vx: float
     steer: float
     battery_voltage: float | None = None
-
-

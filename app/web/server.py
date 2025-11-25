@@ -73,7 +73,7 @@ async def get_config() -> dict[str, Any]:
             "width": config.video.width,
             "height": config.video.height,
             "fps": config.video.fps,
-        }
+        },
     }
 
 

@@ -31,5 +31,3 @@ class EventBus:
 
     async def publish_state(self, state: Any) -> None:
         await self.publish("robot/state", state)
-
-

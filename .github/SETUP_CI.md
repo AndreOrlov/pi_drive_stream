@@ -42,7 +42,7 @@ git push origin dev
 
 Включите:
 - ✅ Require a pull request before merging
-  - Required approvals: **0**
+  - Required approvals: **1**
 - ✅ Require status checks to pass before merging
   - Status checks: `test`, `lint-check`
 - ✅ Restrict who can push to matching branches

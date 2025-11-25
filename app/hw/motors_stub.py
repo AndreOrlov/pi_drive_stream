@@ -9,7 +9,7 @@ from app.messages import DriveCommand
 async def apply_drive_command(cmd: DriveCommand) -> None:
     """
     Apply drive motor command (STUB).
-    
+
     Args:
         cmd: DriveCommand with vx (velocity) and steer values
     """

@@ -30,5 +30,7 @@ class DriveNode:
         while True:
             await asyncio.sleep(self.watchdog_interval_s)
             if time.monotonic() - self._last_cmd_time > self.timeout_s:
-                safe_cmd = DriveCommand(vx=0.0, steer=0.0, mode=DriveMode.EMERGENCY_STOP)
+                safe_cmd = DriveCommand(
+                    vx=0.0, steer=0.0, mode=DriveMode.EMERGENCY_STOP
+                )
                 await apply_drive_command(safe_cmd)
