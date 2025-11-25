@@ -40,7 +40,6 @@ async def apply_camera_command(cmd: CameraCommand) -> None:
         cmd: CameraCommand with pan/tilt values (-1.0 to 1.0)
     """
     if not PIGPIO_AVAILABLE:
-        # На macOS просто игнорируем команды сервоприводов
         return
 
     cfg = config.camera

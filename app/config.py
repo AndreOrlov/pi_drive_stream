@@ -31,7 +31,7 @@ class VideoConfig(BaseModel):
     pts_clock_hz: int = Field(90000, description="Частота PTS clock для WebRTC")
 
     # Трансформации изображения
-    flip_horizontal: bool = Field(False, description="Горизонтальное отражение (зеркало)")
+    flip_horizontal: bool = Field(True, description="Горизонтальное отражение (зеркало)")
     flip_vertical: bool = Field(True, description="Вертикальное отражение (переворот)")
 
 
