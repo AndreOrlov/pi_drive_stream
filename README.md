@@ -70,7 +70,34 @@ sudo apt install -y pigpio
 
 4. **Enable pigpiod daemon auto-start:**
 
-The pigpiod daemon must be running for servo control to work. Enable it to start automatically on boot:
+The pigpiod daemon must be running for servo control to work.
+
+**If installed from source**, create systemd service:
+
+```bash
+# Create systemd unit file
+sudo tee /etc/systemd/system/pigpiod.service > /dev/null << 'EOF'
+[Unit]
+Description=Pigpio daemon
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/pigpiod
+ExecStop=/bin/systemctl kill pigpiod
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Reload systemd and enable
+sudo systemctl daemon-reload
+sudo systemctl enable pigpiod
+sudo systemctl start pigpiod
+```
+
+**If installed from apt**, simply enable:
 
 ```bash
 sudo systemctl enable pigpiod
@@ -84,6 +111,12 @@ sudo systemctl status pigpiod
 ```
 
 You should see "active (running)" in the output.
+
+**Alternative: Manual start** (without systemd):
+
+```bash
+sudo pigpiod
+```
 
 5. **Create virtual environment with system packages:**
 
@@ -144,7 +177,8 @@ pi_drive_stream/
 │   │   ├── drive.py        # Drive control node (with timeout safety)
 │   │   └── camera.py       # Camera control node
 │   ├── hw/
-│   │   └── motors_stub.py  # Motor control stubs (TODO: GPIO/PWM)
+│   │   ├── servos.py       # Camera servo control (pigpio implementation)
+│   │   └── motors_stub.py  # Drive motor control stub (TODO: GPIO/PWM)
 │   └── web/
 │       └── server.py       # FastAPI server, WebSocket, WebRTC signaling
 ├── frontend/
@@ -308,22 +342,35 @@ Make sure the pigpiod daemon is running:
 sudo systemctl status pigpiod
 ```
 
-If not running, start it:
+If systemd service doesn't exist (installed from source):
+
+```bash
+# Start manually
+sudo pigpiod
+
+# Or create systemd service (see installation section)
+```
+
+If service exists but not running:
 
 ```bash
 sudo systemctl start pigpiod
+sudo systemctl enable pigpiod  # enable auto-start on boot
 ```
 
-To enable auto-start on boot:
+Check if daemon is actually running:
 
 ```bash
-sudo systemctl enable pigpiod
+pgrep pigpiod  # should return a process ID
 ```
 
 Check servo connections:
 - Pan servo → GPIO 17 (physical pin 11)
 - Tilt servo → GPIO 18 (physical pin 12)
 - Verify power supply (servos need 5V, not 3.3V)
+- Common (brown/black wire) → GND
+- Power (red wire) → 5V
+- Signal (orange/yellow/white wire) → GPIO pin
 
 ## Development
 

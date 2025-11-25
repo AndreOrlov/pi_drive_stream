@@ -1,59 +1,19 @@
-from app.config import config
-from app.messages import CameraCommand, DriveCommand
-import pigpio
-from typing import Optional
+"""
+Drive motor control stub.
+TODO: Replace with real PWM/GPIO implementation for DC motors and steering.
+"""
 
-_pi: Optional[pigpio.pi] = None
-
-
-def _get_pi() -> pigpio.pi:
-    """Ленивая инициализация pigpio"""
-    global _pi
-    if _pi is None:
-        _pi = pigpio.pi()
-        if not _pi.connected:
-            raise RuntimeError("Cannot connect to pigpiod. Is it running? (sudo systemctl start pigpiod)")
-    return _pi
+from app.messages import DriveCommand
 
 
 async def apply_drive_command(cmd: DriveCommand) -> None:
+    """
+    Apply drive motor command (STUB).
+    
+    Args:
+        cmd: DriveCommand with vx (velocity) and steer values
+    """
     # TODO: replace with real PWM/GPIO implementation for motors and steering
     # Temporarily commented out to reduce log noise
     # print(f"[DRIVE] vx={cmd.vx:.2f}, steer={cmd.steer:.2f}, mode={cmd.mode}")
     pass
-
-
-async def apply_camera_command(cmd: CameraCommand) -> None:
-    cfg = config.camera
-    pi = _get_pi()  # Получаем экземпляр pigpio
-
-    # Применяем инверсию если нужно
-    pan_value = -cmd.pan if cfg.invert_pan else cmd.pan
-    tilt_value = -cmd.tilt if cfg.invert_tilt else cmd.tilt
-
-    # Преобразование в углы серво с учетом конфига
-    pan_angle = int((pan_value + 1.0) / 2.0 * 180)
-    tilt_angle = int((tilt_value + 1.0) / 2.0 * 180)
-
-    # Преобразование в PWM импульсы (мкс)
-    pan_pulse = cfg.servo_min_pulse + (pan_angle / 180.0) * (cfg.servo_max_pulse - cfg.servo_min_pulse)
-    tilt_pulse = cfg.servo_min_pulse + (tilt_angle / 180.0) * (cfg.servo_max_pulse - cfg.servo_min_pulse)
-
-    # Отправка команд на сервоприводы
-    pi.set_servo_pulsewidth(cfg.pan_gpio_pin, pan_pulse)
-    pi.set_servo_pulsewidth(cfg.tilt_gpio_pin, tilt_pulse)
-
-    if cfg.enable_logging:
-        print(f"[CAMERA] pan={cmd.pan:.2f} ({pan_angle}°, {pan_pulse:.0f}μs), tilt={cmd.tilt:.2f} ({tilt_angle}°, {tilt_pulse:.0f}μs)")
-
-
-def cleanup_servo():
-    """Освобождение ресурсов при выключении"""
-    global _pi
-    if _pi is not None:
-        cfg = config.camera
-        # Отключаем PWM (серво перестанут держать позицию)
-        _pi.set_servo_pulsewidth(cfg.pan_gpio_pin, 0)
-        _pi.set_servo_pulsewidth(cfg.tilt_gpio_pin, 0)
-        _pi.stop()
-        _pi = None
