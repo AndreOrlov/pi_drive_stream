@@ -31,7 +31,12 @@ Remote-controlled car with video streaming based on Raspberry Pi 5.
 
 ## Installation
 
-### On Raspberry Pi
+> **Note:** The project now uses separate requirement files:
+> - `requirements-common.txt` - shared dependencies (FastAPI, aiortc, OpenCV, etc.)
+> - `requirements-desktop.txt` - desktop development (includes common)
+> - `requirements-pi.txt` - Raspberry Pi production (includes common + pigpio)
+
+### On Raspberry Pi (Production)
 
 1. **Clone the repository:**
 
@@ -46,111 +51,46 @@ cd pi_drive_stream
 ```bash
 sudo apt update
 sudo apt install -y python3-picamera2 python3-libcamera libcamera-apps
-sudo apt install -y python3-opencv libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libswscale-dev libavfilter-dev
 ```
 
 3. **Install pigpio for servo control:**
 
-If pigpio is not available in your repositories, install from source:
-
-```bash
-# Download and install pigpio daemon and library
-wget https://github.com/joan2937/pigpio/archive/master.zip
-unzip master.zip
-cd pigpio-master
-make
-sudo make install
-cd ..
-rm -rf pigpio-master master.zip
-```
-
-Alternatively, if available in repos (Raspberry Pi OS Bookworm and newer):
-
 ```bash
 sudo apt install -y pigpio
-```
-
-4. **Enable pigpiod daemon auto-start:**
-
-The pigpiod daemon must be running for servo control to work.
-
-**If installed from source**, create systemd service:
-
-```bash
-# Create systemd unit file
-sudo tee /etc/systemd/system/pigpiod.service > /dev/null << 'EOF'
-[Unit]
-Description=Pigpio daemon
-After=network.target
-
-[Service]
-Type=forking
-ExecStart=/usr/local/bin/pigpiod
-ExecStop=/bin/systemctl kill pigpiod
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Reload systemd and enable
-sudo systemctl daemon-reload
 sudo systemctl enable pigpiod
 sudo systemctl start pigpiod
 ```
 
-**If installed from apt**, simply enable:
-
-```bash
-sudo systemctl enable pigpiod
-sudo systemctl start pigpiod
-```
-
-Check daemon status:
-
+Verify pigpiod is running:
 ```bash
 sudo systemctl status pigpiod
 ```
 
-You should see "active (running)" in the output.
-
-**Alternative: Manual start** (without systemd):
+4. **Create virtual environment with system packages access:**
 
 ```bash
-sudo pigpiod
-```
-
-5. **Create virtual environment with system packages:**
-
-```bash
-python3 -m venv .venv --system-site-packages
+# Use --system-site-packages to access system picamera2
+python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
+pip install -r requirements-pi.txt
 ```
 
-6. **Install Python dependencies (including pigpio):**
+5. **Run the server:**
 
 ```bash
-pip install -r requirements.txt
-pip install pigpio
-```
-
-7. **Run the server:**
-
-```bash
-# Quick start (recommended)
 ./start.sh
-
-# Or manually
-python main.py
+# Or manually: python main.py
 ```
 
-8. **Open in browser:**
+6. **Open in browser:**
 
 ```
 http://<raspberry-pi-ip>:8000
 ```
 
-### On macOS (development without camera)
+### On Desktop (Development)
+
+For development with webcam support (macOS, Linux, Windows):
 
 1. **Clone and setup:**
 
@@ -158,21 +98,24 @@ http://<raspberry-pi-ip>:8000
 git clone https://github.com/AndreOrlov/pi_drive_stream.git
 cd pi_drive_stream
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r requirements-desktop.txt
 ```
 
 2. **Run:**
 
 ```bash
-# Quick start
 ./start.sh
-
-# Or manually
-python main.py
+# Or manually: python main.py
 ```
 
-The app will fall back to OpenCV camera (built-in webcam) if Picamera2 is not available.
+3. **Open in browser:**
+
+```
+http://localhost:8000
+```
+
+The app will use OpenCV with your built-in webcam on desktop.
 
 ## Project Structure
 
@@ -202,11 +145,16 @@ pi_drive_stream/
 │   ├── test_overlay_layers.py  # OSD layers tests
 │   ├── test_cv_renderer.py     # Renderer tests
 │   └── test_config.py          # Configuration tests
-├── main.py                 # Entry point
-├── start.sh                # Quick start script
-├── requirements.txt        # Python dependencies
-├── CONFIG.md               # Configuration guide
-└── PLAN_OSD.md             # OSD system architecture and roadmap
+├── main.py                      # Entry point
+├── start.sh                     # Universal start script (Desktop + Pi)
+├── requirements-common.txt      # Common Python dependencies
+├── requirements-desktop.txt     # Desktop-specific dependencies
+├── requirements-pi.txt          # Raspberry Pi-specific dependencies
+├── scripts/
+│   ├── fix_all.sh               # Auto-fix linter issues
+│   └── run_ci_checks.sh         # Run all CI checks locally
+├── CONFIG.md                    # Configuration guide
+└── PLAN_OSD.md                  # OSD system architecture and roadmap
 ```
 
 ## Architecture

@@ -8,7 +8,6 @@ from typing import Optional
 import cv2
 import numpy as np
 from aiortc import MediaStreamTrack, RTCPeerConnection
-from aiortc.contrib.media import MediaRelay
 from av import VideoFrame
 
 from app.config import config
@@ -30,7 +29,8 @@ except ImportError:  # pragma: no cover - not available on non-RPi dev machines
 
 _picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
 _picam2_lock = threading.Lock()
-_relay: MediaRelay | None = None
+_global_camera_track: Optional["CameraVideoTrack"] = None
+_track_lock = threading.Lock()
 
 
 def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
@@ -66,14 +66,27 @@ def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
         return _picam2
 
 
+def _ensure_camera_track() -> "CameraVideoTrack":
+    """
+    Create single global camera track for all connections.
+    Ensures one VideoCapture/Picamera2 instance.
+    """
+    global _global_camera_track
+
+    with _track_lock:
+        if _global_camera_track is None:
+            logger.info("Creating global camera track (single producer)")
+            _global_camera_track = CameraVideoTrack()
+        return _global_camera_track
+
+
 class CameraVideoTrack(MediaStreamTrack):
     kind = "video"
 
     def __init__(self) -> None:
         super().__init__()
-        self._lock = asyncio.Lock()
-        self._counter = 0
         self._start_time: float | None = None
+        self._frame_count = 0
 
         self._use_picamera2 = False
         self._picam2: Picamera2 | None = None  # type: ignore[name-defined]
@@ -94,7 +107,6 @@ class CameraVideoTrack(MediaStreamTrack):
                 logger.error(
                     "Failed to open camera at index %s", config.video.camera_index
                 )
-        self._frame_count = 0
 
         # Инициализация OSD рендерера
         self._overlay_renderer: CvOverlayRenderer | None = None
@@ -165,33 +177,60 @@ class CameraVideoTrack(MediaStreamTrack):
             raise
 
     def stop(self) -> None:
+        """
+        Stop track but don't release camera - it's global and reused.
+        Camera will be released on application shutdown.
+        """
         super().stop()
-        if self._use_picamera2 and self._picam2 is not None:
-            logger.info("Stopping Picamera2")
-            try:
-                self._picam2.stop()
-                self._picam2.close()
-            except Exception as exc:  # pragma: no cover - best effort
-                logger.error("Error stopping Picamera2: %s", exc)
-        elif self._cap is not None and self._cap.isOpened():
-            logger.info("Releasing OpenCV VideoCapture")
-            self._cap.release()
+        logger.info("Track stopped (camera remains active)")
+
+
+class VideoRelayTrack(MediaStreamTrack):
+    """
+    Relay track that forwards frames from camera_track to peer connection.
+    Each peer connection gets its own VideoRelayTrack instance.
+    """
+
+    kind = "video"
+
+    def __init__(self, camera_track: CameraVideoTrack) -> None:
+        super().__init__()
+        self._camera_track = camera_track
+
+    async def recv(self) -> VideoFrame:
+        """Forward frame from camera track."""
+        return await self._camera_track.recv()
 
 
 async def create_peer_connection() -> RTCPeerConnection:
-    """Create RTCPeerConnection with camera video track"""
-    global _relay
-
-    if _relay is None:
-        _relay = MediaRelay()
-
+    """
+    Create RTCPeerConnection with video relay track.
+    Each peer gets its own VideoRelayTrack that reads from global CameraVideoTrack.
+    """
     pc = RTCPeerConnection()
 
-    # Create camera track
-    camera_track = CameraVideoTrack()
+    # Get global camera track (creates if doesn't exist)
+    camera_track = _ensure_camera_track()
 
-    # Use MediaRelay to handle the track
-    video_track = _relay.subscribe(camera_track)
-    pc.addTrack(video_track)
+    # Create relay track for this peer
+    relay_track = VideoRelayTrack(camera_track)
+    pc.addTrack(relay_track)
 
+    logger.info("Created peer connection with video relay track")
     return pc
+
+
+def cleanup_camera() -> None:
+    """Cleanup camera resources on shutdown."""
+    global _global_camera_track
+
+    if _global_camera_track is not None:
+        logger.info("Stopping global camera track")
+        if _global_camera_track._cap is not None:
+            _global_camera_track._cap.release()
+        if _global_camera_track._picam2 is not None:
+            try:
+                _global_camera_track._picam2.stop()
+                _global_camera_track._picam2.close()
+            except Exception as exc:
+                logger.error("Error stopping Picamera2: %s", exc)

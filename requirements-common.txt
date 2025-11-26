@@ -5,5 +5,7 @@ av
 opencv-python
 pydantic
 pydantic-settings
-pigpio
 pytest
+pytest-cov
+ruff
+mypy
