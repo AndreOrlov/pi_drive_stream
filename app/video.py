@@ -6,7 +6,6 @@ import logging
 import threading
 import time
 from collections.abc import Awaitable, Callable
-from typing import Optional
 
 import cv2
 import numpy as np
@@ -31,7 +30,7 @@ except ImportError:  # pragma: no cover - not available on non-RPi dev machines
     PICAMERA2_AVAILABLE = False
 
 
-_picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
+_picam2: Picamera2 | None = None  # type: ignore[name-defined]
 _picam2_lock = threading.Lock()
 _relay: MediaRelay | None = None
 _camera_track: CameraVideoTrack | None = None
@@ -41,7 +40,7 @@ _camera_track_lock: asyncio.Lock | None = None
 CameraReleaseCallback = Callable[[], Awaitable[None]]
 
 
-def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
+def _ensure_picamera2() -> Picamera2:  # type: ignore[override]
     """
     Create and start a single global Picamera2 instance.
     Subsequent callers reuse the same instance to avoid 'Device or resource busy'.
@@ -79,7 +78,6 @@ class CameraVideoTrack(MediaStreamTrack):
 
     def __init__(self) -> None:
         super().__init__()
-        self._lock = asyncio.Lock()
         self._counter = 0
         self._start_time: float | None = None
 
@@ -119,61 +117,97 @@ class CameraVideoTrack(MediaStreamTrack):
                 self._overlay_renderer = CvOverlayRenderer(layers)
                 logger.info("OSD renderer initialized with %d layers", len(layers))
 
-    async def recv(self) -> VideoFrame:
+        # Frame queue and producer task for thread-safe FFmpeg access
+        self._frame_queue: asyncio.Queue[VideoFrame | None] = asyncio.Queue(maxsize=2)
+        self._producer_task: asyncio.Task[None] | None = None
+        self._stop_event = asyncio.Event()
+
+    async def _produce_frames(self) -> None:
+        """Background task that captures frames and creates VideoFrames in a single thread."""
         try:
-            # Initialize start time on first frame
-            if self._start_time is None:
-                self._start_time = time.time()
+            while not self._stop_event.is_set():
+                # Initialize start time on first frame
+                if self._start_time is None:
+                    self._start_time = time.time()
 
-            # Calculate timestamp based on elapsed time
-            elapsed = time.time() - self._start_time
-            pts = int(elapsed * config.video.pts_clock_hz)
-            time_base = fractions.Fraction(1, config.video.pts_clock_hz)
+                # Calculate timestamp based on elapsed time
+                elapsed = time.time() - self._start_time
+                pts = int(elapsed * config.video.pts_clock_hz)
+                time_base = fractions.Fraction(1, config.video.pts_clock_hz)
 
-            self._frame_count += 1
+                self._frame_count += 1
 
-            # Capture frame
-            if self._use_picamera2 and self._picam2 is not None:
-                frame = self._picam2.capture_array()
-            else:
-                ret, frame = (False, None)
-                if self._cap is not None:
-                    ret, frame = self._cap.read()
-                if not ret or frame is None:
-                    frame = np.zeros(
-                        (config.video.height, config.video.width, 3), dtype=np.uint8
-                    )
+                # Capture frame
+                if self._use_picamera2 and self._picam2 is not None:
+                    frame = self._picam2.capture_array()
                 else:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frame = cv2.resize(frame, (config.video.width, config.video.height))
+                    ret, frame = (False, None)
+                    if self._cap is not None:
+                        ret, frame = self._cap.read()
+                    if not ret or frame is None:
+                        frame = np.zeros(
+                            (config.video.height, config.video.width, 3), dtype=np.uint8
+                        )
+                    else:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        frame = cv2.resize(
+                            frame, (config.video.width, config.video.height)
+                        )
 
-                    # Применяем трансформации для OpenCV
-                    if config.video.flip_horizontal and config.video.flip_vertical:
-                        frame = cv2.flip(frame, -1)  # оба направления
-                    elif config.video.flip_vertical:
-                        frame = cv2.flip(frame, 0)  # только вертикально
-                    elif config.video.flip_horizontal:
-                        frame = cv2.flip(frame, 1)  # только горизонтально
+                        # Применяем трансформации для OpenCV
+                        if config.video.flip_horizontal and config.video.flip_vertical:
+                            frame = cv2.flip(frame, -1)  # оба направления
+                        elif config.video.flip_vertical:
+                            frame = cv2.flip(frame, 0)  # только вертикально
+                        elif config.video.flip_horizontal:
+                            frame = cv2.flip(frame, 1)  # только горизонтально
 
-            # Отрисовка OSD
-            if self._overlay_renderer is not None:
-                self._overlay_renderer.draw(frame)
+                # Отрисовка OSD
+                if self._overlay_renderer is not None:
+                    self._overlay_renderer.draw(frame)
 
-            # Create VideoFrame
-            video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
-            video_frame.pts = pts
-            video_frame.time_base = time_base
+                # Create VideoFrame (FFmpeg call - must be single-threaded)
+                video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
+                video_frame.pts = pts
+                video_frame.time_base = time_base
 
-            # Control frame rate
-            await asyncio.sleep(1 / config.video.fps)
+                # Put frame in queue (will block if queue is full)
+                await self._frame_queue.put(video_frame)
 
-            return video_frame
+                # Control frame rate
+                await asyncio.sleep(1 / config.video.fps)
+
+        except asyncio.CancelledError:
+            logger.info("Frame producer task cancelled")
         except Exception as e:
-            logger.error(f"Error in CameraVideoTrack.recv: {e}")
-            raise
+            logger.error(f"Error in frame producer: {e}")
+            # Signal consumers that production has stopped
+            await self._frame_queue.put(None)
+
+    async def recv(self) -> VideoFrame:
+        """Consume frames from the producer queue."""
+        # Start producer on first recv call
+        if self._producer_task is None:
+            self._producer_task = asyncio.create_task(self._produce_frames())
+
+        # Get frame from queue
+        video_frame = await self._frame_queue.get()
+
+        if video_frame is None:
+            raise Exception("Frame producer stopped")
+
+        return video_frame
 
     def stop(self) -> None:
         super().stop()
+
+        # Signal producer to stop
+        self._stop_event.set()
+
+        # Cancel producer task
+        if self._producer_task is not None and not self._producer_task.done():
+            self._producer_task.cancel()
+
         if self._use_picamera2 and self._picam2 is not None:
             logger.info("Stopping Picamera2")
             try:
@@ -195,7 +229,7 @@ async def _get_camera_track_lock() -> asyncio.Lock:
     return _camera_track_lock
 
 
-async def _acquire_camera_track() -> "CameraVideoTrack":
+async def _acquire_camera_track() -> CameraVideoTrack:
     """Return a shared camera track, creating it if necessary."""
 
     global _camera_track, _camera_track_users
