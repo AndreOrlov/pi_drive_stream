@@ -61,10 +61,11 @@ Verify pigpiod is running:
 sudo systemctl status pigpiod
 ```
 
-4. **Create virtual environment and install dependencies:**
+4. **Create virtual environment with system packages access:**
 
 ```bash
-python3 -m venv venv
+# Use --system-site-packages to access system picamera2
+python3 -m venv --system-site-packages venv
 source venv/bin/activate
 pip install -r requirements-pi.txt
 ```

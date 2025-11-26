@@ -1,4 +1,4 @@
 -r requirements-common.txt
 pigpio
-# picamera2 устанавливается системно через:
+# picamera2 - системный пакет, доступен через --system-site-packages:
 # sudo apt install python3-picamera2 python3-libcamera
