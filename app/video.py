@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import asyncio
 import fractions
 import logging
 import threading
 import time
+from collections.abc import Awaitable, Callable
 from typing import Optional
 
 import cv2
@@ -31,6 +34,11 @@ except ImportError:  # pragma: no cover - not available on non-RPi dev machines
 _picam2: Optional["Picamera2"] = None  # type: ignore[name-defined]
 _picam2_lock = threading.Lock()
 _relay: MediaRelay | None = None
+_camera_track: CameraVideoTrack | None = None
+_camera_track_users = 0
+_camera_track_lock: asyncio.Lock | None = None
+
+CameraReleaseCallback = Callable[[], Awaitable[None]]
 
 
 def _ensure_picamera2() -> "Picamera2":  # type: ignore[override]
@@ -178,8 +186,50 @@ class CameraVideoTrack(MediaStreamTrack):
             self._cap.release()
 
 
-async def create_peer_connection() -> RTCPeerConnection:
-    """Create RTCPeerConnection with camera video track"""
+async def _get_camera_track_lock() -> asyncio.Lock:
+    """Return a global lock instance for camera track lifecycle operations."""
+
+    global _camera_track_lock
+    if _camera_track_lock is None:
+        _camera_track_lock = asyncio.Lock()
+    return _camera_track_lock
+
+
+async def _acquire_camera_track() -> "CameraVideoTrack":
+    """Return a shared camera track, creating it if necessary."""
+
+    global _camera_track, _camera_track_users
+    lock = await _get_camera_track_lock()
+    async with lock:
+        if (
+            _camera_track is None
+            or getattr(_camera_track, "readyState", "ended") == "ended"
+        ):
+            logger.info("Creating shared CameraVideoTrack")
+            _camera_track = CameraVideoTrack()
+
+        _camera_track_users += 1
+        return _camera_track
+
+
+async def _release_camera_track() -> None:
+    """Decrease the number of consumers and stop the track when unused."""
+
+    global _camera_track, _camera_track_users
+    lock = await _get_camera_track_lock()
+    async with lock:
+        if _camera_track_users > 0:
+            _camera_track_users -= 1
+
+        if _camera_track_users == 0 and _camera_track is not None:
+            logger.info("Stopping shared CameraVideoTrack")
+            _camera_track.stop()
+            _camera_track = None
+
+
+async def create_peer_connection() -> tuple[RTCPeerConnection, CameraReleaseCallback]:
+    """Create RTCPeerConnection with a shared camera video track."""
+
     global _relay
 
     if _relay is None:
@@ -187,11 +237,22 @@ async def create_peer_connection() -> RTCPeerConnection:
 
     pc = RTCPeerConnection()
 
-    # Create camera track
-    camera_track = CameraVideoTrack()
-
-    # Use MediaRelay to handle the track
+    camera_track = await _acquire_camera_track()
     video_track = _relay.subscribe(camera_track)
     pc.addTrack(video_track)
 
-    return pc
+    release_lock = asyncio.Lock()
+    released = False
+
+    async def release_camera() -> None:
+        """Ensure the shared track is released exactly once per peer."""
+
+        nonlocal released
+        async with release_lock:
+            if released:
+                return
+            released = True
+
+        await _release_camera_track()
+
+    return pc, release_camera

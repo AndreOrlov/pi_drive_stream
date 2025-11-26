@@ -13,7 +13,7 @@ from app.config import config
 from app.messages import CameraCommand, DriveCommand, DriveMode
 from app.nodes.camera import CameraNode
 from app.nodes.drive import DriveNode
-from app.video import create_peer_connection
+from app.video import CameraReleaseCallback, create_peer_connection
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
@@ -25,14 +25,35 @@ camera_node = CameraNode()
 _peer_connections: set[RTCPeerConnection] = set()
 
 
-async def _run_peer_connection(pc: RTCPeerConnection) -> None:
-    """Keep peer connection alive until it closes."""
+async def _run_peer_connection(
+    pc: RTCPeerConnection, release_camera: CameraReleaseCallback
+) -> None:
+    """Monitor peer connection state and release resources when needed."""
+
+    cleanup_lock = asyncio.Lock()
+    cleaned_up = False
+
+    async def _cleanup(reason: str) -> None:
+        """Close the peer connection and release the shared camera."""
+
+        nonlocal cleaned_up
+        async with cleanup_lock:
+            if cleaned_up:
+                return
+            cleaned_up = True
+
+        _peer_connections.discard(pc)
+
+        try:
+            await release_camera()
+        finally:
+            await pc.close()
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange() -> None:
-        if pc.connectionState == "closed":
-            _peer_connections.discard(pc)
-            await pc.close()
+        state = pc.connectionState
+        if state in {"closed", "failed", "disconnected"}:
+            await _cleanup(state)
 
     @pc.on("iceconnectionstatechange")
     async def on_iceconnectionstatechange() -> None:
@@ -84,19 +105,21 @@ class Offer(BaseModel):
 
 @app.post("/webrtc/offer")
 async def webrtc_offer(offer: Offer) -> dict[str, Any]:
-    pc: RTCPeerConnection = await create_peer_connection()
-
-    # Store PC to keep it alive
+    pc, release_camera = await create_peer_connection()
     _peer_connections.add(pc)
+    asyncio.create_task(_run_peer_connection(pc, release_camera))
 
-    # Start background task to monitor connection
-    asyncio.create_task(_run_peer_connection(pc))
+    try:
+        remote_desc = RTCSessionDescription(sdp=offer.sdp, type=offer.type)
+        await pc.setRemoteDescription(remote_desc)
 
-    remote_desc = RTCSessionDescription(sdp=offer.sdp, type=offer.type)
-    await pc.setRemoteDescription(remote_desc)
-
-    answer = await pc.createAnswer()
-    await pc.setLocalDescription(answer)
+        answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+    except Exception:
+        _peer_connections.discard(pc)
+        await release_camera()
+        await pc.close()
+        raise
 
     return {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
 
@@ -132,5 +155,7 @@ async def ws_control(ws: WebSocket) -> None:
                 await event_bus.publish_drive_cmd(stop_cmd)
 
     except WebSocketDisconnect:
+        pass
+    finally:
         stop_cmd = DriveCommand(vx=0.0, steer=0.0, mode=DriveMode.EMERGENCY_STOP)
         await event_bus.publish_drive_cmd(stop_cmd)
