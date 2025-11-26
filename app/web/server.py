@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from typing import Any
 
 from aiortc import RTCPeerConnection, RTCSessionDescription
@@ -14,6 +15,8 @@ from app.messages import CameraCommand, DriveCommand, DriveMode
 from app.nodes.camera import CameraNode
 from app.nodes.drive import DriveNode
 from app.video import create_peer_connection
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
@@ -30,13 +33,15 @@ async def _run_peer_connection(pc: RTCPeerConnection) -> None:
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange() -> None:
-        if pc.connectionState == "closed":
+        if pc.connectionState in ["closed", "failed"]:
+            logger.info(f"Peer connection {pc.connectionState}, cleaning up")
             _peer_connections.discard(pc)
             await pc.close()
 
     @pc.on("iceconnectionstatechange")
     async def on_iceconnectionstatechange() -> None:
-        pass  # Connection state monitoring without logging
+        if pc.iceConnectionState == "failed":
+            logger.warning("ICE connection failed")
 
 
 @app.on_event("startup")
