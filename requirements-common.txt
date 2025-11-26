@@ -6,3 +6,6 @@ opencv-python
 pydantic
 pydantic-settings
 pytest
+pytest-cov
+ruff
+mypy

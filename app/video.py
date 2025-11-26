@@ -190,6 +190,7 @@ class VideoRelayTrack(MediaStreamTrack):
     Relay track that forwards frames from camera_track to peer connection.
     Each peer connection gets its own VideoRelayTrack instance.
     """
+
     kind = "video"
 
     def __init__(self, camera_track: CameraVideoTrack) -> None:
