@@ -31,6 +31,11 @@ Remote-controlled car with video streaming based on Raspberry Pi 5.
 
 ## Installation
 
+> **Note:** The project now uses separate requirement files:
+> - `requirements-common.txt` - shared dependencies (FastAPI, aiortc, OpenCV, etc.)
+> - `requirements-desktop.txt` - desktop development (includes common)
+> - `requirements-pi.txt` - Raspberry Pi production (includes common + pigpio)
+
 ### On Raspberry Pi (Production)
 
 1. **Clone the repository:**
@@ -65,8 +70,8 @@ sudo systemctl status pigpiod
 
 ```bash
 # Use --system-site-packages to access system picamera2
-python3 -m venv --system-site-packages venv
-source venv/bin/activate
+python3 -m venv --system-site-packages .venv
+source .venv/bin/activate
 pip install -r requirements-pi.txt
 ```
 
@@ -92,8 +97,8 @@ For development with webcam support (macOS, Linux, Windows):
 ```bash
 git clone https://github.com/AndreOrlov/pi_drive_stream.git
 cd pi_drive_stream
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements-desktop.txt
 ```
 
@@ -141,10 +146,13 @@ pi_drive_stream/
 │   ├── test_cv_renderer.py     # Renderer tests
 │   └── test_config.py          # Configuration tests
 ├── main.py                      # Entry point
-├── start.sh                     # Quick start script
+├── start.sh                     # Universal start script (Desktop + Pi)
 ├── requirements-common.txt      # Common Python dependencies
-├── requirements-desktop.txt     # Desktop-specific (OpenCV)
-├── requirements-pi.txt          # Raspberry Pi-specific (pigpio)
+├── requirements-desktop.txt     # Desktop-specific dependencies
+├── requirements-pi.txt          # Raspberry Pi-specific dependencies
+├── scripts/
+│   ├── fix_all.sh               # Auto-fix linter issues
+│   └── run_ci_checks.sh         # Run all CI checks locally
 ├── CONFIG.md                    # Configuration guide
 └── PLAN_OSD.md                  # OSD system architecture and roadmap
 ```

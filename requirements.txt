@@ -1,9 +1,0 @@
-fastapi
-uvicorn[standard]
-aiortc
-av
-opencv-python
-pydantic
-pydantic-settings
-pigpio
-pytest
