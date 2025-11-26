@@ -49,3 +49,6 @@ class Layer(ABC):
             frame: Кадр в формате RGB (numpy array), модифицируется на месте
         """
         ...
+
+
+

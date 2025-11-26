@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import fractions
 import logging
 import threading
@@ -10,7 +11,6 @@ from collections.abc import Awaitable, Callable
 import cv2
 import numpy as np
 from aiortc import MediaStreamTrack, RTCPeerConnection
-from aiortc.contrib.media import MediaRelay
 from av import VideoFrame
 
 from app.config import config
@@ -32,7 +32,6 @@ except ImportError:  # pragma: no cover - not available on non-RPi dev machines
 
 _picam2: Picamera2 | None = None  # type: ignore[name-defined]
 _picam2_lock = threading.Lock()
-_relay: MediaRelay | None = None
 _camera_track: CameraVideoTrack | None = None
 _camera_track_users = 0
 _camera_track_lock: asyncio.Lock | None = None
@@ -117,14 +116,17 @@ class CameraVideoTrack(MediaStreamTrack):
                 self._overlay_renderer = CvOverlayRenderer(layers)
                 logger.info("OSD renderer initialized with %d layers", len(layers))
 
-        # Frame queue and producer task for thread-safe FFmpeg access
-        self._frame_queue: asyncio.Queue[VideoFrame | None] = asyncio.Queue(maxsize=2)
+        # Broadcast mechanism: producer writes to all subscriber queues
+        self._subscribers: list[asyncio.Queue[VideoFrame | None]] = []
+        self._subscribers_lock = asyncio.Lock()
         self._producer_task: asyncio.Task[None] | None = None
         self._stop_event = asyncio.Event()
+        self._latest_frame: VideoFrame | None = None
 
     async def _produce_frames(self) -> None:
-        """Background task that captures frames and creates VideoFrames in a single thread."""
+        """Background task that captures frames and broadcasts to all subscribers."""
         try:
+            logger.info("Frame producer started")
             while not self._stop_event.is_set():
                 # Initialize start time on first frame
                 if self._start_time is None:
@@ -143,7 +145,13 @@ class CameraVideoTrack(MediaStreamTrack):
                 else:
                     ret, frame = (False, None)
                     if self._cap is not None:
-                        ret, frame = self._cap.read()
+                        # Run blocking read in thread pool to avoid blocking event loop
+                        if self._frame_count % 30 == 0:
+                            logger.debug(f"Frame {self._frame_count}: calling cv2.VideoCapture.read()")
+                        loop = asyncio.get_event_loop()
+                        ret, frame = await loop.run_in_executor(None, self._cap.read)
+                        if self._frame_count % 30 == 0:
+                            logger.debug(f"Frame {self._frame_count}: cv2.VideoCapture.read() returned ret={ret}")
                     if not ret or frame is None:
                         frame = np.zeros(
                             (config.video.height, config.video.width, 3), dtype=np.uint8
@@ -167,12 +175,29 @@ class CameraVideoTrack(MediaStreamTrack):
                     self._overlay_renderer.draw(frame)
 
                 # Create VideoFrame (FFmpeg call - must be single-threaded)
+                if self._frame_count % 30 == 0:
+                    logger.debug(f"Frame {self._frame_count}: creating VideoFrame")
                 video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
                 video_frame.pts = pts
                 video_frame.time_base = time_base
+                if self._frame_count % 30 == 0:
+                    logger.debug(f"Frame {self._frame_count}: VideoFrame created")
 
-                # Put frame in queue (will block if queue is full)
-                await self._frame_queue.put(video_frame)
+                # Store latest frame for new subscribers
+                self._latest_frame = video_frame
+
+                # Broadcast to all subscribers
+                async with self._subscribers_lock:
+                    subscriber_count = len(self._subscribers)
+                    for queue in self._subscribers[:]:  # Copy list to avoid modification during iteration
+                        with contextlib.suppress(asyncio.QueueFull):
+                            # Skip frame if subscriber queue is full (slow consumer)
+                            queue.put_nowait(video_frame)
+
+                if self._frame_count % 30 == 0:  # Log every 30 frames
+                    logger.info(
+                        f"Produced frame {self._frame_count}, {subscriber_count} subscribers"
+                    )
 
                 # Control frame rate
                 await asyncio.sleep(1 / config.video.fps)
@@ -181,22 +206,41 @@ class CameraVideoTrack(MediaStreamTrack):
             logger.info("Frame producer task cancelled")
         except Exception as e:
             logger.error(f"Error in frame producer: {e}")
-            # Signal consumers that production has stopped
-            await self._frame_queue.put(None)
+            # Signal all consumers that production has stopped
+            async with self._subscribers_lock:
+                for queue in self._subscribers:
+                    with contextlib.suppress(asyncio.QueueFull):
+                        queue.put_nowait(None)
 
-    async def recv(self) -> VideoFrame:
-        """Consume frames from the producer queue."""
-        # Start producer on first recv call
+    async def subscribe(self) -> asyncio.Queue[VideoFrame | None]:
+        """Create a new subscriber queue for broadcasting frames."""
+        queue: asyncio.Queue[VideoFrame | None] = asyncio.Queue(maxsize=2)
+
+        async with self._subscribers_lock:
+            self._subscribers.append(queue)
+            subscriber_count = len(self._subscribers)
+
+        logger.info(f"New subscriber added, total subscribers: {subscriber_count}")
+
+        # Start producer on first subscriber
         if self._producer_task is None:
+            logger.info("Starting frame producer task")
             self._producer_task = asyncio.create_task(self._produce_frames())
 
-        # Get frame from queue
-        video_frame = await self._frame_queue.get()
+        return queue
 
-        if video_frame is None:
-            raise Exception("Frame producer stopped")
+    async def unsubscribe(self, queue: asyncio.Queue[VideoFrame | None]) -> None:
+        """Remove a subscriber queue."""
+        async with self._subscribers_lock:
+            if queue in self._subscribers:
+                self._subscribers.remove(queue)
+            subscriber_count = len(self._subscribers)
 
-        return video_frame
+        logger.info(f"Subscriber removed, remaining subscribers: {subscriber_count}")
+
+    async def recv(self) -> VideoFrame:
+        """This method should not be called directly - use BroadcastVideoTrack instead."""
+        raise NotImplementedError("Use subscribe() to create broadcast tracks")
 
     def stop(self) -> None:
         super().stop()
@@ -220,6 +264,39 @@ class CameraVideoTrack(MediaStreamTrack):
             self._cap.release()
 
 
+class BroadcastVideoTrack(MediaStreamTrack):
+    """Wrapper track that receives frames from CameraVideoTrack broadcast."""
+
+    kind = "video"
+
+    def __init__(self, source: CameraVideoTrack) -> None:
+        super().__init__()
+        self._source = source
+        self._queue: asyncio.Queue[VideoFrame | None] | None = None
+        logger.info(f"BroadcastVideoTrack created: {id(self)}")
+
+    async def recv(self) -> VideoFrame:
+        """Receive frame from broadcast queue."""
+        if self._queue is None:
+            logger.info(f"BroadcastVideoTrack {id(self)}: subscribing to camera")
+            self._queue = await self._source.subscribe()
+
+        video_frame = await self._queue.get()
+
+        if video_frame is None:
+            logger.error(f"BroadcastVideoTrack {id(self)}: producer stopped")
+            raise Exception("Frame producer stopped")
+
+        return video_frame
+
+    def stop(self) -> None:
+        super().stop()
+        logger.info(f"BroadcastVideoTrack {id(self)}: stopping")
+        if self._queue is not None:
+            # Unsubscribe from source (async, but we can't await in stop)
+            asyncio.create_task(self._source.unsubscribe(self._queue))
+
+
 async def _get_camera_track_lock() -> asyncio.Lock:
     """Return a global lock instance for camera track lifecycle operations."""
 
@@ -241,8 +318,10 @@ async def _acquire_camera_track() -> CameraVideoTrack:
         ):
             logger.info("Creating shared CameraVideoTrack")
             _camera_track = CameraVideoTrack()
+            logger.info(f"CameraVideoTrack created: {id(_camera_track)}")
 
         _camera_track_users += 1
+        logger.info(f"Camera track acquired, users: {_camera_track_users}")
         return _camera_track
 
 
@@ -254,26 +333,26 @@ async def _release_camera_track() -> None:
     async with lock:
         if _camera_track_users > 0:
             _camera_track_users -= 1
+            logger.info(f"Camera track released, remaining users: {_camera_track_users}")
 
         if _camera_track_users == 0 and _camera_track is not None:
-            logger.info("Stopping shared CameraVideoTrack")
+            logger.info("Stopping shared CameraVideoTrack (no users left)")
             _camera_track.stop()
             _camera_track = None
 
 
 async def create_peer_connection() -> tuple[RTCPeerConnection, CameraReleaseCallback]:
-    """Create RTCPeerConnection with a shared camera video track."""
+    """Create RTCPeerConnection with a broadcast video track."""
 
-    global _relay
-
-    if _relay is None:
-        _relay = MediaRelay()
-
+    logger.info("Creating new peer connection")
     pc = RTCPeerConnection()
 
     camera_track = await _acquire_camera_track()
-    video_track = _relay.subscribe(camera_track)
-    pc.addTrack(video_track)
+
+    # Create a broadcast wrapper track for this client
+    broadcast_track = BroadcastVideoTrack(camera_track)
+    pc.addTrack(broadcast_track)
+    logger.info(f"Broadcast track added to peer connection: {id(pc)}")
 
     release_lock = asyncio.Lock()
     released = False
@@ -284,9 +363,15 @@ async def create_peer_connection() -> tuple[RTCPeerConnection, CameraReleaseCall
         nonlocal released
         async with release_lock:
             if released:
+                logger.warning(f"Peer {id(pc)}: release_camera called twice (ignored)")
                 return
             released = True
 
+        logger.info(f"Peer {id(pc)}: releasing camera resources")
+        # Stop the broadcast track
+        broadcast_track.stop()
+
+        # Release the shared camera track
         await _release_camera_track()
 
     return pc, release_camera

@@ -84,3 +84,6 @@ class CrosshairLayer(Layer):
         # Центральная точка
         cv2.circle(frame, (center_x, center_y), 3, self.outline_color, -1, cv2.LINE_AA)
         cv2.circle(frame, (center_x, center_y), 2, self.color, -1, cv2.LINE_AA)
+
+
+

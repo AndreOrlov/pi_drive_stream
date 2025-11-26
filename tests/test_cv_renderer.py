@@ -107,3 +107,6 @@ def test_renderer_does_not_modify_layers_list() -> None:
     renderer.draw(frame)
 
     assert len(layers) == original_length, "Список слоёв не должен изменяться"
+
+
+

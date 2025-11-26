@@ -110,3 +110,6 @@ git push origin feature/my-feature
 ### Хочу обойти защиту
 - Временно отключите branch protection rule
 - Или добавьте себя в исключения ("Allow specified actors to bypass")
+
+
+

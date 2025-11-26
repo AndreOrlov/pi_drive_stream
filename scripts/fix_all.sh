@@ -18,3 +18,6 @@ echo ""
 
 echo "✓ All auto-fixes applied!"
 echo "Run './scripts/run_ci_checks.sh' to verify."
+
+
+

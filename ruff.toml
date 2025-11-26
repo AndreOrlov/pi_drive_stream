@@ -26,3 +26,6 @@ line-ending = "auto"
 [lint.per-file-ignores]
 # Игнорировать некоторые правила для тестов
 "tests/**/*.py" = ["S101"]  # assert allowed in tests
+
+
+

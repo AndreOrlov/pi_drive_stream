@@ -137,3 +137,6 @@ ruff check app/ tests/ && pytest tests/ -v
 - Временно отключите branch protection rule
 - Или добавьте себя в "Allow specified actors to bypass"
 - **Не рекомендуется** для production
+
+
+

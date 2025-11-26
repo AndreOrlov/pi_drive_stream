@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from typing import Any
 
 from aiortc import RTCPeerConnection, RTCSessionDescription
@@ -14,6 +15,8 @@ from app.messages import CameraCommand, DriveCommand, DriveMode
 from app.nodes.camera import CameraNode
 from app.nodes.drive import DriveNode
 from app.video import CameraReleaseCallback, create_peer_connection
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
@@ -39,19 +42,23 @@ async def _run_peer_connection(
         nonlocal cleaned_up
         async with cleanup_lock:
             if cleaned_up:
+                logger.warning(f"Peer {id(pc)}: cleanup already done (reason: {reason})")
                 return
             cleaned_up = True
 
+        logger.info(f"Peer {id(pc)}: cleaning up (reason: {reason})")
         _peer_connections.discard(pc)
 
         try:
             await release_camera()
         finally:
             await pc.close()
+            logger.info(f"Peer {id(pc)}: cleanup complete")
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange() -> None:
         state = pc.connectionState
+        logger.info(f"Peer {id(pc)}: connection state changed to {state}")
         if state in {"closed", "failed", "disconnected"}:
             await _cleanup(state)
 
@@ -105,8 +112,10 @@ class Offer(BaseModel):
 
 @app.post("/webrtc/offer")
 async def webrtc_offer(offer: Offer) -> dict[str, Any]:
+    logger.info("Received WebRTC offer")
     pc, release_camera = await create_peer_connection()
     _peer_connections.add(pc)
+    logger.info(f"Peer {id(pc)}: added to active connections (total: {len(_peer_connections)})")
     asyncio.create_task(_run_peer_connection(pc, release_camera))
 
     try:
@@ -115,7 +124,9 @@ async def webrtc_offer(offer: Offer) -> dict[str, Any]:
 
         answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
-    except Exception:
+        logger.info(f"Peer {id(pc)}: WebRTC negotiation complete")
+    except Exception as e:
+        logger.error(f"Peer {id(pc)}: WebRTC negotiation failed: {e}")
         _peer_connections.discard(pc)
         await release_camera()
         await pc.close()

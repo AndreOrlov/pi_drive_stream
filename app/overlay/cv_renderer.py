@@ -31,3 +31,6 @@ class CvOverlayRenderer:
         for layer in self.layers:
             if layer.enabled:
                 layer.render(frame)
+
+
+

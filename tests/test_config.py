@@ -67,3 +67,6 @@ def test_overlay_config_all_enabled() -> None:
     assert config.crosshair is True
     assert config.telemetry is True
     assert config.warnings is True
+
+
+
