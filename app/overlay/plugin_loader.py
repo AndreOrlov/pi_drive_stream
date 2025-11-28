@@ -4,7 +4,6 @@ import importlib
 import logging
 import pkgutil
 from pathlib import Path
-from typing import Type
 
 from app.overlay.base import Layer
 from app.overlay.plugin_registry import list_plugins
@@ -12,7 +11,9 @@ from app.overlay.plugin_registry import list_plugins
 logger = logging.getLogger(__name__)
 
 
-def discover_plugins(package_name: str = "app.overlay.layers") -> dict[str, Type[Layer]]:
+def discover_plugins(
+    package_name: str = "app.overlay.layers",
+) -> dict[str, type[Layer]]:
     """
     Автоматическое обнаружение и загрузка плагинов из пакета.
 

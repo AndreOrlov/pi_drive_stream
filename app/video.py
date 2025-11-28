@@ -129,7 +129,9 @@ class CameraVideoTrack(MediaStreamTrack):
 
                 # Извлекаем параметры для создания плагина
                 params = {
-                    k: v for k, v in plugin_config.items() if k not in ("enabled", "priority")
+                    k: v
+                    for k, v in plugin_config.items()
+                    if k not in ("enabled", "priority")
                 }
 
                 try:
@@ -142,7 +144,9 @@ class CameraVideoTrack(MediaStreamTrack):
 
                     layers.append(layer)
                     logger.info(
-                        "Loaded plugin '%s' with priority %d", plugin_name, layer.priority
+                        "Loaded plugin '%s' with priority %d",
+                        plugin_name,
+                        layer.priority,
                     )
                 except Exception as e:
                     logger.error("Failed to initialize plugin '%s': %s", plugin_name, e)

@@ -1,7 +1,6 @@
 """Тесты для системы плагинов оверлеев."""
 
 import numpy as np
-import pytest
 
 from app.overlay.base import Layer
 from app.overlay.plugin_loader import discover_plugins
@@ -57,7 +56,7 @@ def test_plugin_has_priority_attribute() -> None:
     """Тест что плагины имеют атрибут priority после создания."""
     plugins = discover_plugins()
 
-    for plugin_name, plugin_cls in plugins.items():
+    for _plugin_name, plugin_cls in plugins.items():
         instance = plugin_cls()
         assert hasattr(instance, "priority")
         assert isinstance(instance.priority, int)

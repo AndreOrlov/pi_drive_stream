@@ -16,7 +16,7 @@ def test_overlay_config_defaults() -> None:
     assert config.plugins["crosshair"]["enabled"] is True
     assert config.plugins["telemetry"]["enabled"] is True
     assert config.plugins["warning"]["enabled"] is True
-    assert config.plugins["motion_detector"]["enabled"] is False
+    assert config.plugins["motion_detector"]["enabled"] is True
 
 
 def test_overlay_config_can_be_disabled() -> None:

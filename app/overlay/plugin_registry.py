@@ -1,10 +1,8 @@
 """Registry для плагинов оверлеев."""
 
-from typing import Type
-
 from app.overlay.base import Layer
 
-_PLUGINS: dict[str, Type[Layer]] = {}
+_PLUGINS: dict[str, type[Layer]] = {}
 
 
 def register_layer(name: str):
@@ -24,7 +22,7 @@ def register_layer(name: str):
                 pass
     """
 
-    def decorator(cls: Type[Layer]) -> Type[Layer]:
+    def decorator(cls: type[Layer]) -> type[Layer]:
         """Внутренний декоратор для регистрации класса."""
         _PLUGINS[name] = cls
         return cls
@@ -32,7 +30,7 @@ def register_layer(name: str):
     return decorator
 
 
-def get_plugin(name: str) -> Type[Layer] | None:
+def get_plugin(name: str) -> type[Layer] | None:
     """
     Получить класс плагина по имени.
 
@@ -45,7 +43,7 @@ def get_plugin(name: str) -> Type[Layer] | None:
     return _PLUGINS.get(name)
 
 
-def list_plugins() -> dict[str, Type[Layer]]:
+def list_plugins() -> dict[str, type[Layer]]:
     """
     Получить словарь всех зарегистрированных плагинов.
 

@@ -128,7 +128,7 @@ def test_renderer_sorts_layers_by_priority() -> None:
     # Создаём слои в случайном порядке приоритетов
     layers = [
         PriorityTrackedLayer(100),  # Должен быть вторым
-        PriorityTrackedLayer(0),    # Должен быть первым
+        PriorityTrackedLayer(0),  # Должен быть первым
         PriorityTrackedLayer(200),  # Должен быть третьим
     ]
 
