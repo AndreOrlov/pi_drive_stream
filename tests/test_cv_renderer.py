@@ -107,3 +107,33 @@ def test_renderer_does_not_modify_layers_list() -> None:
     renderer.draw(frame)
 
     assert len(layers) == original_length, "Список слоёв не должен изменяться"
+
+
+def test_renderer_sorts_layers_by_priority() -> None:
+    """Рендерер сортирует слои по приоритету."""
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+    call_order: list[int] = []
+
+    class PriorityTrackedLayer(CrosshairLayer):
+        """Слой, который отслеживает порядок вызовов по приоритету."""
+
+        def __init__(self, priority: int) -> None:
+            super().__init__(enabled=True)
+            self.priority = priority
+
+        def render(self, frame: np.ndarray) -> None:
+            call_order.append(self.priority)
+
+    # Создаём слои в случайном порядке приоритетов
+    layers = [
+        PriorityTrackedLayer(100),  # Должен быть вторым
+        PriorityTrackedLayer(0),  # Должен быть первым
+        PriorityTrackedLayer(200),  # Должен быть третьим
+    ]
+
+    renderer = CvOverlayRenderer(layers)
+    renderer.draw(frame)
+
+    # Проверяем, что слои вызваны в порядке возрастания приоритета
+    assert call_order == [0, 100, 200], "Слои должны вызываться в порядке приоритета"

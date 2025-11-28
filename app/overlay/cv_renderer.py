@@ -19,7 +19,8 @@ class CvOverlayRenderer:
         Args:
             layers: Список слоёв для отрисовки
         """
-        self.layers = layers
+        # Сортируем слои по приоритету (меньше = рисуется раньше)
+        self.layers = sorted(layers, key=lambda layer: layer.priority)
 
     def draw(self, frame: np.ndarray) -> None:
         """

@@ -111,10 +111,30 @@ class OverlayConfig(BaseModel):
     """Настройки OSD (On-Screen Display)"""
 
     enabled: bool = Field(True, description="Включить OSD")
-    backend: str = Field("cv", description="Backend отрисовки (cv, picamera, gst)")
-    crosshair: bool = Field(True, description="Показывать прицел")
-    telemetry: bool = Field(True, description="Показывать телеметрию (дата/время)")
-    warnings: bool = Field(True, description="Показывать предупреждения")
+    plugins: dict[str, dict] = Field(
+        default_factory=lambda: {
+            "crosshair": {
+                "enabled": True,
+                "size": 20,
+                "thickness": 2,
+            },
+            "telemetry": {
+                "enabled": True,
+                "position": [10, 30],
+                "font_scale": 0.7,
+            },
+            "warning": {
+                "enabled": True,
+                "warning_text": "LOW BATTERY",
+            },
+            "motion_detector": {
+                "enabled": True,
+                "sensitivity": 30,
+                "min_area": 500,
+            },
+        },
+        description="Конфигурация плагинов оверлеев",
+    )
 
 
 class Config(BaseModel):

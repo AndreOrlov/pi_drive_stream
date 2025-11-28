@@ -13,7 +13,7 @@ from av import VideoFrame
 from app.config import config
 from app.overlay import CvOverlayRenderer
 from app.overlay.base import Layer
-from app.overlay.layers import CrosshairLayer, TelemetryLayer, WarningLayer
+from app.overlay.plugin_loader import discover_plugins
 
 logger = logging.getLogger(__name__)
 
@@ -108,16 +108,48 @@ class CameraVideoTrack(MediaStreamTrack):
                     "Failed to open camera at index %s", config.video.camera_index
                 )
 
-        # Инициализация OSD рендерера
+        # Инициализация OSD рендерера с плагинами
         self._overlay_renderer: CvOverlayRenderer | None = None
         if config.overlay.enabled:
+            # Обнаруживаем все доступные плагины
+            available_plugins = discover_plugins()
+            logger.info("Discovered %d overlay plugins", len(available_plugins))
+
             layers: list[Layer] = []
-            if config.overlay.crosshair:
-                layers.append(CrosshairLayer())
-            if config.overlay.telemetry:
-                layers.append(TelemetryLayer())
-            if config.overlay.warnings:
-                layers.append(WarningLayer())
+
+            # Создаём слои на основе конфигурации
+            for plugin_name, plugin_config in config.overlay.plugins.items():
+                if not plugin_config.get("enabled", False):
+                    continue
+
+                plugin_cls = available_plugins.get(plugin_name)
+                if plugin_cls is None:
+                    logger.warning("Plugin '%s' not found, skipping", plugin_name)
+                    continue
+
+                # Извлекаем параметры для создания плагина
+                params = {
+                    k: v
+                    for k, v in plugin_config.items()
+                    if k not in ("enabled", "priority")
+                }
+
+                try:
+                    # Создаём экземпляр плагина
+                    layer = plugin_cls(**params)
+
+                    # Переопределяем priority если указан в конфиге
+                    if "priority" in plugin_config:
+                        layer.priority = plugin_config["priority"]
+
+                    layers.append(layer)
+                    logger.info(
+                        "Loaded plugin '%s' with priority %d",
+                        plugin_name,
+                        layer.priority,
+                    )
+                except Exception as e:
+                    logger.error("Failed to initialize plugin '%s': %s", plugin_name, e)
 
             if layers:
                 self._overlay_renderer = CvOverlayRenderer(layers)

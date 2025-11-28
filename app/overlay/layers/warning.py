@@ -4,8 +4,10 @@ import cv2
 import numpy as np
 
 from app.overlay.layers.base import Layer
+from app.overlay.plugin_registry import register_layer
 
 
+@register_layer("warning")
 class WarningLayer(Layer):
     """
     Слой с предупреждениями.
@@ -35,7 +37,7 @@ class WarningLayer(Layer):
             thickness: Толщина текста
             outline_thickness: Толщина обводки
         """
-        super().__init__(enabled)
+        super().__init__(enabled, priority=Layer.PRIORITY_HUD)
         self.warning_text = warning_text
         self.font_scale = font_scale
         self.color = color
