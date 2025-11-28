@@ -4,8 +4,10 @@ import cv2
 import numpy as np
 
 from app.overlay.layers.base import Layer
+from app.overlay.plugin_registry import register_layer
 
 
+@register_layer("crosshair")
 class CrosshairLayer(Layer):
     """
     Слой с прицелом в центре кадра.
@@ -33,7 +35,7 @@ class CrosshairLayer(Layer):
             outline_color: Цвет обводки (RGB)
             outline_thickness: Толщина обводки
         """
-        super().__init__(enabled)
+        super().__init__(enabled, priority=Layer.PRIORITY_FOREGROUND)
         self.size = size
         self.thickness = thickness
         self.color = color

@@ -264,14 +264,32 @@ video=VideoConfig(
 )
 ```
 
-**Configure OSD (On-Screen Display):**
+**Configure OSD (On-Screen Display) Plugins:**
 ```python
 # app/config.py
 overlay=OverlayConfig(
-    enabled=True,      # Enable/disable OSD
-    crosshair=True,    # Show crosshair
-    telemetry=True,    # Show date/time
-    warnings=False,    # Hide warnings
+    enabled=True,
+    plugins={
+        "crosshair": {
+            "enabled": True,
+            "size": 20,
+            "thickness": 2,
+        },
+        "telemetry": {
+            "enabled": True,
+            "position": [10, 30],
+            "font_scale": 0.7,
+        },
+        "warning": {
+            "enabled": True,
+            "warning_text": "LOW BATTERY",
+        },
+        "motion_detector": {
+            "enabled": False,  # Включить детектор движения
+            "sensitivity": 30,
+            "min_area": 500,
+        },
+    }
 )
 ```
 
@@ -359,6 +377,104 @@ Check servo connections:
 - Common (brown/black wire) → GND
 - Power (red wire) → 5V
 - Signal (orange/yellow/white wire) → GPIO pin
+
+## OSD Plugin System
+
+The project uses a modular plugin architecture for overlay layers, allowing easy extension and customization.
+
+### Available Plugins
+
+| Plugin | Priority | Description | Status |
+|--------|----------|-------------|--------|
+| `motion_detector` | 0 (Background) | Детектор движения с отображением областей | Stub |
+| `crosshair` | 100 (Foreground) | Прицел в центре экрана | ✅ Active |
+| `warning` | 200 (HUD) | Предупреждающие сообщения | ✅ Active |
+| `telemetry` | 200 (HUD) | Дата, время, телеметрия | ✅ Active |
+
+### Priority System
+
+Layers are rendered in order of priority (lower = earlier = background):
+- **0-49**: Background elements, detectors
+- **50-99**: Normal graphics
+- **100-199**: Foreground elements (crosshair)
+- **200+**: HUD elements (text, telemetry)
+
+### Configuring Plugins
+
+Each plugin can be enabled/disabled and configured via `app/config.py`:
+
+```python
+overlay=OverlayConfig(
+    enabled=True,
+    plugins={
+        "crosshair": {
+            "enabled": True,
+            "priority": 100,  # Optional: override default priority
+            "size": 20,       # Plugin-specific parameters
+        },
+        "motion_detector": {
+            "enabled": True,
+            "sensitivity": 30,
+            "min_area": 500,
+        },
+    }
+)
+```
+
+### Creating Custom Plugins
+
+Create a new file in `app/overlay/layers/`:
+
+```python
+# app/overlay/layers/my_plugin.py
+import cv2
+import numpy as np
+from app.overlay.layers.base import Layer
+from app.overlay.plugin_registry import register_layer
+
+@register_layer("my_plugin")
+class MyPluginLayer(Layer):
+    """Custom overlay plugin."""
+
+    def __init__(
+        self,
+        enabled: bool = True,
+        color: tuple[int, int, int] = (255, 0, 0),
+    ) -> None:
+        # Set priority: PRIORITY_BACKGROUND, PRIORITY_NORMAL,
+        # PRIORITY_FOREGROUND, or PRIORITY_HUD
+        super().__init__(enabled, priority=Layer.PRIORITY_NORMAL)
+        self.color = color
+
+    def render(self, frame: np.ndarray) -> None:
+        """Draw on the frame."""
+        # Your drawing code here
+        cv2.circle(frame, (100, 100), 50, self.color, -1)
+```
+
+Then add to config:
+
+```python
+overlay=OverlayConfig(
+    plugins={
+        "my_plugin": {
+            "enabled": True,
+            "color": [255, 0, 0],
+        }
+    }
+)
+```
+
+The plugin will be automatically discovered and loaded on startup.
+
+### Plugin Architecture
+
+- **Registry Pattern**: Plugins register via `@register_layer` decorator
+- **Auto-discovery**: All modules in `app/overlay/layers/` are loaded automatically
+- **Priority-based rendering**: Layers sorted by priority on initialization
+- **Hot-reload**: Restart server to load new plugins
+
+For more details, see [`PLAN_OSD.md`](PLAN_OSD.md).
 
 ## Development
 
