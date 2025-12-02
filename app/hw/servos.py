@@ -53,12 +53,12 @@ async def apply_camera_command(cmd: CameraCommand) -> None:
     tilt_angle = int((tilt_value + 1.0) / 2.0 * 180)
 
     # Преобразование в PWM импульсы (мкс)
-    pan_pulse = cfg.servo_min_pulse + (pan_angle / 180.0) * (
+    pan_pulse = int(cfg.servo_min_pulse + (pan_angle / 180.0) * (
         cfg.servo_max_pulse - cfg.servo_min_pulse
-    )
-    tilt_pulse = cfg.servo_min_pulse + (tilt_angle / 180.0) * (
+    ))
+    tilt_pulse = int(cfg.servo_min_pulse + (tilt_angle / 180.0) * (
         cfg.servo_max_pulse - cfg.servo_min_pulse
-    )
+    ))
 
     # Отправка команд на сервоприводы
     pi.set_servo_pulsewidth(cfg.pan_gpio_pin, pan_pulse)
