@@ -1,6 +1,5 @@
 """Тесты для PerformanceOptimizedDetector."""
 
-
 import numpy as np
 
 from app.overlay.motion.grid_mean_detector import GridMeanDetector

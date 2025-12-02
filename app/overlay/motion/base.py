@@ -66,4 +66,3 @@ class BaseMotionDetector(ABC):
         if len(frame.shape) == 3:
             return cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         return frame
-

@@ -150,8 +150,8 @@ class TestGetCellPixels:
 
         assert pixels.shape == (10, 10, 3)
         assert np.all(pixels[:, :, 0] == 255)  # R
-        assert np.all(pixels[:, :, 1] == 0)    # G
-        assert np.all(pixels[:, :, 2] == 0)    # B
+        assert np.all(pixels[:, :, 1] == 0)  # G
+        assert np.all(pixels[:, :, 2] == 0)  # B
 
     def test_extract_full_frame(self) -> None:
         """Тест извлечения всего кадра."""

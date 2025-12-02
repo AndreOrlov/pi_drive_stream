@@ -102,7 +102,9 @@ class GridMeanDetector(BaseMotionDetector):
         self._last_avg_brightness = avg_brightness
 
         # Размер ячейки
-        cell_w, cell_h = calculate_cell_size(width, height, self.grid_width, self.grid_height)
+        cell_w, cell_h = calculate_cell_size(
+            width, height, self.grid_width, self.grid_height
+        )
 
         # Матрица движения (результат)
         motion = np.zeros((self.grid_height, self.grid_width), dtype=np.uint8)

@@ -133,8 +133,7 @@ class MotionDetectorLayer(Layer):
         self.motion_matrix = None
         self._detection_future: concurrent.futures.Future | None = None
         self._executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=1,
-            thread_name_prefix="motion_detector_"
+            max_workers=1, thread_name_prefix="motion_detector_"
         )
 
         if self.stage >= 2:
@@ -176,7 +175,9 @@ class MotionDetectorLayer(Layer):
                     min_brightness=min_brightness,
                 )
             else:
-                raise ValueError(f"Unknown algorithm: {algorithm}. Supported: 'grid_mean', 'grid_rms', 'frame_diff'")
+                raise ValueError(
+                    f"Unknown algorithm: {algorithm}. Supported: 'grid_mean', 'grid_rms', 'frame_diff'"
+                )
 
             # Оборачиваем в оптимизатор производительности
             self.detector = PerformanceOptimizedDetector(
@@ -194,7 +195,9 @@ class MotionDetectorLayer(Layer):
             frame: Кадр в формате RGB
         """
         height, width = frame.shape[:2]
-        cell_w, cell_h = calculate_cell_size(width, height, self.grid_width, self.grid_height)
+        cell_w, cell_h = calculate_cell_size(
+            width, height, self.grid_width, self.grid_height
+        )
 
         # STAGE 1: Только визуализация сетки
         if self.stage == 1:
@@ -247,14 +250,14 @@ class MotionDetectorLayer(Layer):
             cell_h: Высота ячейки в пикселях
         """
         # 1. Запустить детекцию в executor (освобождает GIL для OpenCV/NumPy)
-        if self.detector is not None and (self._detection_future is None or self._detection_future.done()):
+        if self.detector is not None and (
+            self._detection_future is None or self._detection_future.done()
+        ):
             try:
                 loop = asyncio.get_running_loop()
                 # Запускаем детекцию в executor (эквивалент asyncio.to_thread)
                 self._detection_future = loop.run_in_executor(
-                    self._executor,
-                    self.detector.detect,
-                    frame.copy()
+                    self._executor, self.detector.detect, frame.copy()
                 )
                 # Добавляем callback для обновления motion_matrix
                 self._detection_future.add_done_callback(self._on_detection_complete)
@@ -461,9 +464,11 @@ class MotionDetectorLayer(Layer):
         motion_percent = (motion_count / total_cells) * 100 if total_cells > 0 else 0
 
         # Название алгоритма
-        algo_name = {"grid_mean": "Grid Mean", "grid_rms": "Grid RMS", "frame_diff": "Frame Diff"}.get(
-            self.algorithm, self.algorithm.title()
-        )
+        algo_name = {
+            "grid_mean": "Grid Mean",
+            "grid_rms": "Grid RMS",
+            "frame_diff": "Frame Diff",
+        }.get(self.algorithm, self.algorithm.title())
 
         lines = [
             f"Motion Detection ({algo_name})",
@@ -514,7 +519,8 @@ class MotionDetectorLayer(Layer):
 
         # Вычисляем размер фона с правильными отступами
         max_text_width = max(
-            cv2.getTextSize(line, self.font, font_scale, thickness)[0][0] for line in lines
+            cv2.getTextSize(line, self.font, font_scale, thickness)[0][0]
+            for line in lines
         )
 
         # Ширина и высота бокса (с учетом внутренних отступов)
@@ -559,5 +565,5 @@ class MotionDetectorLayer(Layer):
 
     def __del__(self) -> None:
         """Cleanup executor при удалении layer."""
-        if hasattr(self, '_executor'):
+        if hasattr(self, "_executor"):
             self._executor.shutdown(wait=False)

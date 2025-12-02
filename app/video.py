@@ -187,7 +187,9 @@ class CameraVideoTrack(MediaStreamTrack):
                         )
                     else:
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                        frame = cv2.resize(frame, (config.video.width, config.video.height))
+                        frame = cv2.resize(
+                            frame, (config.video.width, config.video.height)
+                        )
 
                         # Применяем трансформации для OpenCV
                         if config.video.flip_horizontal and config.video.flip_vertical:

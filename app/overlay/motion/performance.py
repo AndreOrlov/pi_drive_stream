@@ -41,7 +41,9 @@ class PerformanceOptimizedDetector:
         self.enable_profiling = enable_profiling
 
         # Ограничение FPS
-        self._min_frame_interval = 1.0 / max_detection_fps if max_detection_fps > 0 else 0
+        self._min_frame_interval = (
+            1.0 / max_detection_fps if max_detection_fps > 0 else 0
+        )
         self._last_detection_time = 0.0
 
         # Пропуск кадров
@@ -181,7 +183,9 @@ class PerformanceOptimizedDetector:
             "min_duration_ms": min_time * 1000,
             "max_duration_ms": max_time * 1000,
             "actual_fps": actual_fps,
-            "target_fps": self.max_detection_fps if self.max_detection_fps > 0 else None,
+            "target_fps": self.max_detection_fps
+            if self.max_detection_fps > 0
+            else None,
         }
 
     def reset_stats(self) -> None:

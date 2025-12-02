@@ -90,7 +90,9 @@ class GridRMSDetector(BaseMotionDetector):
         self._last_avg_brightness = avg_brightness
 
         # Размер ячейки
-        cell_w, cell_h = calculate_cell_size(width, height, self.grid_width, self.grid_height)
+        cell_w, cell_h = calculate_cell_size(
+            width, height, self.grid_width, self.grid_height
+        )
 
         # Матрица движения (результат)
         motion = np.zeros((self.grid_height, self.grid_width), dtype=np.uint8)
@@ -114,9 +116,11 @@ class GridRMSDetector(BaseMotionDetector):
                     # RMS для детекции (только если фон инициализирован)
                     if self.background is not None:
                         # Разница каждого пикселя с фоном
-                        cell_diff = cell_pixels.astype(np.float32) - self.background[j, i]
+                        cell_diff = (
+                            cell_pixels.astype(np.float32) - self.background[j, i]
+                        )
                         # RMS = sqrt(mean(diff^2))
-                        rms_values[j, i] = np.sqrt(np.mean(cell_diff ** 2))
+                        rms_values[j, i] = np.sqrt(np.mean(cell_diff**2))
 
         # Инициализация фона (первый кадр)
         if self.background is None:
