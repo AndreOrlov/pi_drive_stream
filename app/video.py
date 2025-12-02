@@ -87,7 +87,7 @@ class CameraVideoTrack(MediaStreamTrack):
         super().__init__()
         self._start_time: float | None = None
         self._frame_count = 0
-        self._recv_lock = asyncio.Lock()
+        self._recv_lock: asyncio.Lock | None = None
 
         self._use_picamera2 = False
         self._picam2: Picamera2 | None = None  # type: ignore[name-defined]
@@ -157,6 +157,10 @@ class CameraVideoTrack(MediaStreamTrack):
                 logger.info("OSD renderer initialized with %d layers", len(layers))
 
     async def recv(self) -> VideoFrame:
+        # Ленивая инициализация lock при первом вызове
+        if self._recv_lock is None:
+            self._recv_lock = asyncio.Lock()
+
         async with self._recv_lock:
             try:
                 # Initialize start time on first frame

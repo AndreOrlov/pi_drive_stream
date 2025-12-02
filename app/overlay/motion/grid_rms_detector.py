@@ -74,7 +74,7 @@ class GridRMSDetector(BaseMotionDetector):
         height, width = gray.shape
 
         # 1. Проверка brightness (edge case)
-        avg_brightness = gray.mean()
+        avg_brightness = float(gray.mean())
         if avg_brightness < self.min_brightness:
             return np.zeros((self.grid_height, self.grid_width), dtype=np.uint8)
 
