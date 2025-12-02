@@ -27,7 +27,7 @@ class GridMeanDetector(BaseMotionDetector):
         grid_width: int = 24,
         grid_height: int = 18,
         threshold: float = 25.0,
-        alpha: float = 0.02,
+        base_alpha: float = 0.02,
         alpha_fast_multiplier: float = 5.0,
         alpha_slow_multiplier: float = 0.5,
         use_adaptive_threshold: bool = True,
@@ -41,7 +41,7 @@ class GridMeanDetector(BaseMotionDetector):
             grid_width: Количество столбцов в сетке
             grid_height: Количество строк в сетке
             threshold: Базовый порог детекции (разница яркости)
-            alpha: Базовая скорость обновления фона (0.01-0.1)
+            base_alpha: Базовая скорость обновления фона (0.01-0.1)
             alpha_fast_multiplier: Множитель для быстрого обновления (нет движения)
             alpha_slow_multiplier: Множитель для медленного обновления (есть движение)
             use_adaptive_threshold: Использовать адаптивный порог на основе std
@@ -49,9 +49,9 @@ class GridMeanDetector(BaseMotionDetector):
             max_change_threshold: Порог для определения резкого изменения освещения
         """
         super().__init__(grid_width, grid_height, threshold)
-        self.alpha = alpha
-        self.alpha_fast = alpha * alpha_fast_multiplier
-        self.alpha_slow = alpha * alpha_slow_multiplier
+        self.base_alpha = base_alpha
+        self.alpha_fast = base_alpha * alpha_fast_multiplier
+        self.alpha_slow = base_alpha * alpha_slow_multiplier
         self.use_adaptive_threshold = use_adaptive_threshold
         self.min_brightness = min_brightness
         self.max_change_threshold = max_change_threshold

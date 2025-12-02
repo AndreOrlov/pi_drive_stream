@@ -11,7 +11,7 @@ def test_detector_initialization() -> None:
         grid_width=32,
         grid_height=24,
         threshold=25.0,
-        alpha=0.02,
+        base_alpha=0.02,
         alpha_fast_multiplier=5.0,
         alpha_slow_multiplier=0.5,
         use_adaptive_threshold=True,
@@ -22,7 +22,7 @@ def test_detector_initialization() -> None:
     assert detector.grid_width == 32
     assert detector.grid_height == 24
     assert detector.threshold == 25.0
-    assert detector.alpha == 0.02
+    assert detector.base_alpha == 0.02
     assert detector.alpha_fast == 0.1  # 0.02 * 5.0
     assert detector.alpha_slow == 0.01  # 0.02 * 0.5
     assert detector.use_adaptive_threshold is True
@@ -92,7 +92,7 @@ def test_two_speed_background_update() -> None:
     detector = GridMeanDetector(
         grid_width=4,  # Маленькая сетка для простоты
         grid_height=3,
-        alpha=0.1,
+        base_alpha=0.1,
         alpha_fast_multiplier=2.0,  # alpha_fast = 0.2
         alpha_slow_multiplier=0.5,  # alpha_slow = 0.05
         threshold=10.0,

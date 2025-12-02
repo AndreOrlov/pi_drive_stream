@@ -134,7 +134,8 @@ class OverlayConfig(BaseModel):
                 "grid_width": 32,
                 "grid_height": 24,
                 # Детекция (stage 2)
-                "threshold": 25.0,  # Базовый порог детекции
+                "algorithm": "grid_mean",  # "grid_mean" | "grid_rms"
+                "threshold": 25.0,  # Базовый порог детекции (для RMS обычно ниже: 15.0)
                 "alpha": 0.02,  # Базовая скорость обновления фона
                 "alpha_fast_multiplier": 5.0,  # Множитель для быстрого обновления (нет движения)
                 "alpha_slow_multiplier": 0.5,  # Множитель для медленного обновления (есть движение)
@@ -145,6 +146,7 @@ class OverlayConfig(BaseModel):
                 "max_detection_fps": 15,  # Максимальный FPS детекции (0 = без ограничений)
                 "skip_frames": 0,  # Пропускать N кадров между детекциями
                 "enable_profiling": True,  # Включить профилирование производительности
+                "show_performance": True,  # Показывать статистику производительности на экране
                 # Визуализация движения (stage 2)
                 "box_color": [0, 255, 0],  # Зеленый
                 "box_thickness": 1,
