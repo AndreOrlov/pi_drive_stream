@@ -7,7 +7,7 @@ from typing import Optional
 
 import cv2
 import numpy as np
-from aiortc import MediaStreamTrack, RTCPeerConnection
+from aiortc import MediaStreamTrack, RTCPeerConnection, RTCRtpSender
 from av import VideoFrame
 
 from app.config import config
@@ -238,6 +238,7 @@ async def create_peer_connection() -> RTCPeerConnection:
     """
     Create RTCPeerConnection with video relay track.
     Each peer gets its own VideoRelayTrack that reads from global CameraVideoTrack.
+    Uses H.264 codec for better quality and compression.
     """
     pc = RTCPeerConnection()
 
@@ -246,7 +247,21 @@ async def create_peer_connection() -> RTCPeerConnection:
 
     # Create relay track for this peer
     relay_track = VideoRelayTrack(camera_track)
-    pc.addTrack(relay_track)
+    sender = pc.addTrack(relay_track)
+
+    # Prefer H.264 codec over VP8 for better quality
+    try:
+        video_caps = RTCRtpSender.getCapabilities("video")
+        h264_codecs = [c for c in video_caps.codecs if c.mimeType == "video/H264"]
+
+        if h264_codecs:
+            transceiver = next(t for t in pc.getTransceivers() if t.sender == sender)
+            transceiver.setCodecPreferences(h264_codecs)
+            logger.info("H.264 codec selected for video encoding")
+        else:
+            logger.warning("H.264 codec not available, using default codec")
+    except Exception as e:
+        logger.warning("Failed to set H.264 codec preference: %s", e)
 
     logger.info("Created peer connection with video relay track")
     return pc
