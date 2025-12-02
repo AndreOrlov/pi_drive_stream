@@ -75,7 +75,7 @@ class MotionDetectorLayer(Layer):
         height, width = frame.shape[:2]
         cell_w, cell_h = calculate_cell_size(width, height, self.grid_width, self.grid_height)
 
-        # Рисуем вертикальные линии
+        # Рисуем вертикальные линии с антиалиасингом
         for i in range(1, self.grid_width):
             x = int(i * cell_w)
             cv2.line(
@@ -84,9 +84,10 @@ class MotionDetectorLayer(Layer):
                 (x, height),
                 self.grid_line_color,
                 self.grid_line_thickness,
+                cv2.LINE_AA,  # Антиалиасинг для гладких линий
             )
 
-        # Рисуем горизонтальные линии
+        # Рисуем горизонтальные линии с антиалиасингом
         for j in range(1, self.grid_height):
             y = int(j * cell_h)
             cv2.line(
@@ -95,6 +96,7 @@ class MotionDetectorLayer(Layer):
                 (width, y),
                 self.grid_line_color,
                 self.grid_line_thickness,
+                cv2.LINE_AA,  # Антиалиасинг для гладких линий
             )
 
         # Опционально: показать номера ячеек (для отладки)
