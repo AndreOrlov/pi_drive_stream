@@ -3,18 +3,23 @@
 import numpy as np
 
 from app.overlay.motion.base import BaseMotionDetector
-from app.overlay.motion.grid_utils import calculate_cell_size, get_cell_bounds, get_cell_pixels
+from app.overlay.motion.grid_utils import (
+    calculate_cell_size,
+    get_cell_bounds,
+    get_cell_pixels,
+)
 
 
 class GridMeanDetector(BaseMotionDetector):
     """
-    Детектор движения на основе средней яркости ячейки.
+    Улучшенный детектор движения на основе средней яркости ячейки.
 
     Алгоритм:
     1. Разбивает кадр на сетку ячеек
     2. Вычисляет среднюю яркость каждой ячейки
-    3. Сравнивает с фоновой моделью
-    4. Обновляет фон с экспоненциальным сглаживанием
+    3. Сравнивает с фоновой моделью (с адаптивным порогом)
+    4. Обновляет фон с двухскоростным экспоненциальным сглаживанием
+    5. Обрабатывает edge cases (темные кадры, резкие изменения освещения)
     """
 
     def __init__(
@@ -23,6 +28,11 @@ class GridMeanDetector(BaseMotionDetector):
         grid_height: int = 18,
         threshold: float = 25.0,
         alpha: float = 0.02,
+        alpha_fast_multiplier: float = 5.0,
+        alpha_slow_multiplier: float = 0.5,
+        use_adaptive_threshold: bool = True,
+        min_brightness: float = 10.0,
+        max_change_threshold: float = 200.0,
     ):
         """
         Инициализация детектора.
@@ -30,15 +40,33 @@ class GridMeanDetector(BaseMotionDetector):
         Args:
             grid_width: Количество столбцов в сетке
             grid_height: Количество строк в сетке
-            threshold: Порог детекции (разница яркости)
-            alpha: Скорость обновления фона (0.01-0.1)
+            threshold: Базовый порог детекции (разница яркости)
+            alpha: Базовая скорость обновления фона (0.01-0.1)
+            alpha_fast_multiplier: Множитель для быстрого обновления (нет движения)
+            alpha_slow_multiplier: Множитель для медленного обновления (есть движение)
+            use_adaptive_threshold: Использовать адаптивный порог на основе std
+            min_brightness: Минимальная средняя яркость кадра для детекции
+            max_change_threshold: Порог для определения резкого изменения освещения
         """
         super().__init__(grid_width, grid_height, threshold)
         self.alpha = alpha
+        self.alpha_fast = alpha * alpha_fast_multiplier
+        self.alpha_slow = alpha * alpha_slow_multiplier
+        self.use_adaptive_threshold = use_adaptive_threshold
+        self.min_brightness = min_brightness
+        self.max_change_threshold = max_change_threshold
+
+        # Статистика для edge cases
+        self._last_avg_brightness = 0.0
+
+    def reset(self) -> None:
+        """Сбросить состояние детектора."""
+        super().reset()
+        self._last_avg_brightness = 0.0
 
     def detect(self, frame: np.ndarray) -> np.ndarray:
         """
-        Детектировать движение в кадре.
+        Детектировать движение в кадре с улучшенными алгоритмами.
 
         Args:
             frame: Кадр (RGB или grayscale)
@@ -49,6 +77,27 @@ class GridMeanDetector(BaseMotionDetector):
         # Конвертация в grayscale
         gray = self._to_grayscale(frame)
         height, width = gray.shape
+
+        # ============================================================
+        # EDGE CASE 1: Проверка минимальной яркости
+        # ============================================================
+        avg_brightness = float(gray.mean())
+
+        if avg_brightness < self.min_brightness:
+            # Слишком темный кадр - пропускаем детекцию
+            return np.zeros((self.grid_height, self.grid_width), dtype=np.uint8)
+
+        # ============================================================
+        # EDGE CASE 2: Проверка резкого изменения освещения
+        # ============================================================
+        if self._last_avg_brightness > 0:
+            brightness_change = abs(avg_brightness - self._last_avg_brightness)
+            if brightness_change > self.max_change_threshold:
+                # Резкое изменение освещения (включили/выключили свет)
+                # Сбрасываем фон для переинициализации
+                self.reset()
+
+        self._last_avg_brightness = avg_brightness
 
         # Размер ячейки
         cell_w, cell_h = calculate_cell_size(width, height, self.grid_width, self.grid_height)
@@ -74,12 +123,30 @@ class GridMeanDetector(BaseMotionDetector):
             self._initialized = True
             return motion  # Все нули в первом кадре
 
-        # Детекция движения
+        # ============================================================
+        # ДЕТЕКЦИЯ ДВИЖЕНИЯ с адаптивным порогом
+        # ============================================================
         diff = np.abs(current_avgs - self.background)
-        motion = (diff > self.threshold).astype(np.uint8)
 
-        # Обновление фона (экспоненциальное сглаживание)
-        self.background = self.alpha * current_avgs + (1 - self.alpha) * self.background
+        if self.use_adaptive_threshold:
+            # Адаптивный порог: base_threshold + k * std(background)
+            # Коэффициент 2.5 подобран эмпирически
+            adaptive_threshold = max(self.threshold, float(self.background.std()) * 2.5)
+        else:
+            adaptive_threshold = self.threshold
+
+        motion = (diff > adaptive_threshold).astype(np.uint8)
+
+        # ============================================================
+        # ДВУХСКОРОСТНОЕ ОБНОВЛЕНИЕ ФОНА
+        # ============================================================
+        # Где движения НЕТ (motion == 0): быстрое обновление (alpha_fast)
+        # Где движение ЕСТЬ (motion == 1): медленное обновление (alpha_slow)
+        #
+        # Логика: статичные области быстро адаптируются к новому фону,
+        # а области с движением обновляются медленно, чтобы не "съесть"
+        # движущийся объект в фон
+        alpha_map = np.where(motion == 0, self.alpha_fast, self.alpha_slow)
+        self.background = alpha_map * current_avgs + (1 - alpha_map) * self.background
 
         return motion
-

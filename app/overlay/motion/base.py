@@ -1,8 +1,9 @@
 """Базовый класс для детекторов движения."""
 
 from abc import ABC, abstractmethod
-import numpy as np
+
 import cv2
+import numpy as np
 
 
 class BaseMotionDetector(ABC):

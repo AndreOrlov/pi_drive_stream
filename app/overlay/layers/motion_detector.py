@@ -33,6 +33,11 @@ class MotionDetectorLayer(Layer):
         # Детекция (stage 2)
         threshold: float = 25.0,
         alpha: float = 0.02,
+        alpha_fast_multiplier: float = 5.0,
+        alpha_slow_multiplier: float = 0.5,
+        use_adaptive_threshold: bool = True,
+        min_brightness: float = 10.0,
+        max_change_threshold: float = 200.0,
         # Визуализация движения (stage 2)
         box_color: tuple[int, int, int] = (0, 255, 0),
         box_thickness: int = 2,
@@ -54,8 +59,13 @@ class MotionDetectorLayer(Layer):
             stage: Этап реализации (1 = сетка, 2 = детекция)
             grid_width: Количество столбцов сетки
             grid_height: Количество строк сетки
-            threshold: Порог детекции движения
-            alpha: Скорость обновления фона
+            threshold: Базовый порог детекции движения
+            alpha: Базовая скорость обновления фона
+            alpha_fast_multiplier: Множитель для быстрого обновления (нет движения)
+            alpha_slow_multiplier: Множитель для медленного обновления (есть движение)
+            use_adaptive_threshold: Использовать адаптивный порог на основе std
+            min_brightness: Минимальная средняя яркость для детекции
+            max_change_threshold: Порог для определения резкого изменения освещения
             box_color: Цвет квадратиков с движением
             box_thickness: Толщина рамки квадратиков
             box_fill_alpha: Прозрачность заливки квадратиков
@@ -77,6 +87,11 @@ class MotionDetectorLayer(Layer):
         # Детекция (stage 2)
         self.threshold = threshold
         self.alpha = alpha
+        self.alpha_fast_multiplier = alpha_fast_multiplier
+        self.alpha_slow_multiplier = alpha_slow_multiplier
+        self.use_adaptive_threshold = use_adaptive_threshold
+        self.min_brightness = min_brightness
+        self.max_change_threshold = max_change_threshold
 
         # Визуализация движения
         self.box_color = tuple(box_color)
@@ -112,6 +127,11 @@ class MotionDetectorLayer(Layer):
                 grid_height=grid_height,
                 threshold=threshold,
                 alpha=alpha,
+                alpha_fast_multiplier=alpha_fast_multiplier,
+                alpha_slow_multiplier=alpha_slow_multiplier,
+                use_adaptive_threshold=use_adaptive_threshold,
+                min_brightness=min_brightness,
+                max_change_threshold=max_change_threshold,
             )
 
     def render(self, frame: np.ndarray) -> None:

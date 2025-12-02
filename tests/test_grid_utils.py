@@ -1,7 +1,6 @@
 """Тесты для утилит работы с сеткой детекции движения."""
 
 import numpy as np
-import pytest
 
 from app.overlay.motion.grid_utils import (
     calculate_cell_size,

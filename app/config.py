@@ -134,8 +134,13 @@ class OverlayConfig(BaseModel):
                 "grid_width": 32,
                 "grid_height": 24,
                 # Детекция (stage 2)
-                "threshold": 25.0,  # Порог детекции
-                "alpha": 0.02,  # Скорость обновления фона
+                "threshold": 25.0,  # Базовый порог детекции
+                "alpha": 0.02,  # Базовая скорость обновления фона
+                "alpha_fast_multiplier": 5.0,  # Множитель для быстрого обновления (нет движения)
+                "alpha_slow_multiplier": 0.5,  # Множитель для медленного обновления (есть движение)
+                "use_adaptive_threshold": True,  # Адаптивный порог на основе std
+                "min_brightness": 10.0,  # Минимальная яркость для детекции
+                "max_change_threshold": 200.0,  # Порог резкого изменения освещения
                 # Визуализация движения (stage 2)
                 "box_color": [0, 255, 0],  # Зеленый
                 "box_thickness": 1,
