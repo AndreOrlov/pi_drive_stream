@@ -141,6 +141,10 @@ class OverlayConfig(BaseModel):
                 "use_adaptive_threshold": True,  # Адаптивный порог на основе std
                 "min_brightness": 10.0,  # Минимальная яркость для детекции
                 "max_change_threshold": 200.0,  # Порог резкого изменения освещения
+                # Производительность
+                "max_detection_fps": 15,  # Максимальный FPS детекции (0 = без ограничений)
+                "skip_frames": 0,  # Пропускать N кадров между детекциями
+                "enable_profiling": True,  # Включить профилирование производительности
                 # Визуализация движения (stage 2)
                 "box_color": [0, 255, 0],  # Зеленый
                 "box_thickness": 1,

@@ -7,6 +7,7 @@ from app.overlay.motion.grid_utils import (
     get_cell_bounds,
     get_cell_pixels,
 )
+from app.overlay.motion.performance import PerformanceOptimizedDetector
 
 __all__ = [
     "calculate_cell_size",
@@ -14,5 +15,5 @@ __all__ = [
     "get_cell_pixels",
     "BaseMotionDetector",
     "GridMeanDetector",
+    "PerformanceOptimizedDetector",
 ]
-

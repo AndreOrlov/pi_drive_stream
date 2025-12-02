@@ -38,6 +38,10 @@ class MotionDetectorLayer(Layer):
         use_adaptive_threshold: bool = True,
         min_brightness: float = 10.0,
         max_change_threshold: float = 200.0,
+        # Производительность
+        max_detection_fps: int = 15,
+        skip_frames: int = 0,
+        enable_profiling: bool = True,
         # Визуализация движения (stage 2)
         box_color: tuple[int, int, int] = (0, 255, 0),
         box_thickness: int = 2,
@@ -66,6 +70,9 @@ class MotionDetectorLayer(Layer):
             use_adaptive_threshold: Использовать адаптивный порог на основе std
             min_brightness: Минимальная средняя яркость для детекции
             max_change_threshold: Порог для определения резкого изменения освещения
+            max_detection_fps: Максимальный FPS детекции (0 = без ограничений)
+            skip_frames: Пропускать N кадров между детекциями
+            enable_profiling: Включить профилирование производительности
             box_color: Цвет квадратиков с движением
             box_thickness: Толщина рамки квадратиков
             box_fill_alpha: Прозрачность заливки квадратиков
@@ -92,6 +99,11 @@ class MotionDetectorLayer(Layer):
         self.use_adaptive_threshold = use_adaptive_threshold
         self.min_brightness = min_brightness
         self.max_change_threshold = max_change_threshold
+
+        # Производительность
+        self.max_detection_fps = max_detection_fps
+        self.skip_frames = skip_frames
+        self.enable_profiling = enable_profiling
 
         # Визуализация движения
         self.box_color = tuple(box_color)
@@ -121,8 +133,10 @@ class MotionDetectorLayer(Layer):
 
         if self.stage >= 2:
             from app.overlay.motion.grid_mean_detector import GridMeanDetector
+            from app.overlay.motion.performance import PerformanceOptimizedDetector
 
-            self.detector = GridMeanDetector(
+            # Создаем базовый детектор
+            base_detector = GridMeanDetector(
                 grid_width=grid_width,
                 grid_height=grid_height,
                 threshold=threshold,
@@ -132,6 +146,14 @@ class MotionDetectorLayer(Layer):
                 use_adaptive_threshold=use_adaptive_threshold,
                 min_brightness=min_brightness,
                 max_change_threshold=max_change_threshold,
+            )
+
+            # Оборачиваем в оптимизатор производительности
+            self.detector = PerformanceOptimizedDetector(
+                detector=base_detector,
+                max_detection_fps=max_detection_fps,
+                skip_frames=skip_frames,
+                enable_profiling=enable_profiling,
             )
 
     def render(self, frame: np.ndarray) -> None:
@@ -394,7 +416,7 @@ class MotionDetectorLayer(Layer):
         cell_h: int,
     ) -> None:
         """
-        Отрисовать информацию о детекции (Этап 2).
+        Отрисовать расширенную информацию о детекции (Этап 2).
 
         Args:
             frame: Кадр для отрисовки
@@ -409,12 +431,38 @@ class MotionDetectorLayer(Layer):
         motion_percent = (motion_count / total_cells) * 100 if total_cells > 0 else 0
 
         lines = [
-            "Motion Detection - STAGE 2",
+            "Motion Detection",
             f"Motion: {motion_count}/{total_cells} ({motion_percent:.1f}%)",
-            f"Grid: {self.grid_width}x{self.grid_height}",
-            f"Cell: {cell_w}x{cell_h}px",
-            f"Threshold: {self.threshold:.1f}",
+            f"Grid: {self.grid_width}x{self.grid_height} (cell: {cell_w}x{cell_h}px)",
         ]
+
+        # Добавляем статистику производительности
+        if self.detector and self.enable_profiling:
+            perf_stats = self.detector.get_stats()
+
+            # FPS информация
+            if "actual_fps" in perf_stats:
+                actual_fps = perf_stats["actual_fps"]
+                target_fps = perf_stats.get("target_fps", "∞")
+                lines.append(f"FPS: {actual_fps:.1f} (target: {target_fps})")
+
+            # Время обработки
+            if "avg_duration_ms" in perf_stats:
+                avg_time = perf_stats["avg_duration_ms"]
+                max_time = perf_stats.get("max_duration_ms", 0)
+                lines.append(f"Time: {avg_time:.1f}ms (max: {max_time:.1f}ms)")
+
+            # Статистика пропусков
+            total_detections = perf_stats.get("total_detections", 0)
+            total_skipped = perf_stats.get("total_skipped", 0)
+            if total_skipped > 0:
+                skip_ratio = perf_stats.get("skip_ratio", 0) * 100
+                lines.append(f"Skipped: {total_skipped}/{total_detections + total_skipped} ({skip_ratio:.1f}%)")
+        else:
+            # Базовая информация без профилирования
+            lines.append(f"Threshold: {self.threshold:.1f}")
+            if self.use_adaptive_threshold:
+                lines.append("Mode: adaptive threshold")
 
         self._draw_info_box(frame, lines)
 
