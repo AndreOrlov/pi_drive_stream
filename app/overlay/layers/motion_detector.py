@@ -110,16 +110,16 @@ class MotionDetectorLayer(Layer):
     def _draw_cell_numbers(
         self,
         frame: np.ndarray,
-        cell_w: float,
-        cell_h: float,
+        cell_w: int,
+        cell_h: int,
     ) -> None:
         """
         Нарисовать номера ячеек (для отладки).
 
         Args:
             frame: Кадр для отрисовки
-            cell_w: Ширина ячейки
-            cell_h: Высота ячейки
+            cell_w: Ширина ячейки в пикселях
+            cell_h: Высота ячейки в пикселях
         """
         font_scale = 0.3
         thickness = 1
@@ -144,16 +144,16 @@ class MotionDetectorLayer(Layer):
     def _draw_stats(
         self,
         frame: np.ndarray,
-        cell_w: float,
-        cell_h: float,
+        cell_w: int,
+        cell_h: int,
     ) -> None:
         """
         Отрисовать информацию о сетке.
 
         Args:
             frame: Кадр для отрисовки
-            cell_w: Ширина ячейки
-            cell_h: Высота ячейки
+            cell_w: Ширина ячейки в пикселях
+            cell_h: Высота ячейки в пикселях
         """
         height, width = frame.shape[:2]
         total_cells = self.grid_width * self.grid_height
@@ -161,7 +161,7 @@ class MotionDetectorLayer(Layer):
         lines = [
             "Motion Detection - STAGE 1",
             f"Grid: {self.grid_width}x{self.grid_height} ({total_cells} cells)",
-            f"Cell size: {cell_w:.1f}x{cell_h:.1f}px",
+            f"Cell size: {cell_w}x{cell_h}px",
             f"Frame: {width}x{height}px",
         ]
 

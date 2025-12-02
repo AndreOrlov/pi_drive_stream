@@ -8,9 +8,12 @@ def calculate_cell_size(
     frame_height: int,
     grid_width: int,
     grid_height: int,
-) -> tuple[float, float]:
+) -> tuple[int, int]:
     """
-    Вычислить размер одной ячейки сетки в пикселях.
+    Вычислить размер одной ячейки сетки в пикселях (целочисленное).
+
+    Использует целочисленное деление для точного попадания линий на пиксели,
+    избегая субпиксельного позиционирования и "размазывания" при антиалиасинге.
 
     Args:
         frame_width: Ширина кадра в пикселях
@@ -19,22 +22,26 @@ def calculate_cell_size(
         grid_height: Количество строк сетки
 
     Returns:
-        Кортеж (cell_width, cell_height) - размеры ячейки в пикселях
+        Кортеж (cell_width, cell_height) - размеры ячейки в целых пикселях
 
     Example:
         >>> calculate_cell_size(640, 480, 24, 18)
-        (26.666666666666668, 26.666666666666668)
+        (26, 26)
+
+    Note:
+        Из-за округления могут быть небольшие отличия в размерах последних ячеек,
+        но линии будут четкими и равномерными по яркости.
     """
-    cell_width = frame_width / grid_width
-    cell_height = frame_height / grid_height
+    cell_width = frame_width // grid_width
+    cell_height = frame_height // grid_height
     return cell_width, cell_height
 
 
 def get_cell_bounds(
     i: int,
     j: int,
-    cell_width: float,
-    cell_height: float,
+    cell_width: int,
+    cell_height: int,
 ) -> tuple[int, int, int, int]:
     """
     Получить границы ячейки в пикселях.
@@ -42,22 +49,22 @@ def get_cell_bounds(
     Args:
         i: Индекс столбца (0-based, слева направо)
         j: Индекс строки (0-based, сверху вниз)
-        cell_width: Ширина ячейки в пикселях
-        cell_height: Высота ячейки в пикселях
+        cell_width: Ширина ячейки в целых пикселях
+        cell_height: Высота ячейки в целых пикселях
 
     Returns:
         Кортеж (x1, y1, x2, y2) - координаты левого верхнего и правого нижнего углов
 
     Example:
-        >>> get_cell_bounds(0, 0, 26.67, 26.67)
+        >>> get_cell_bounds(0, 0, 26, 26)
         (0, 0, 26, 26)
-        >>> get_cell_bounds(1, 0, 26.67, 26.67)
-        (26, 0, 53, 26)
+        >>> get_cell_bounds(1, 0, 26, 26)
+        (26, 0, 52, 26)
     """
-    x1 = int(i * cell_width)
-    y1 = int(j * cell_height)
-    x2 = int((i + 1) * cell_width)
-    y2 = int((j + 1) * cell_height)
+    x1 = i * cell_width
+    y1 = j * cell_height
+    x2 = (i + 1) * cell_width
+    y2 = (j + 1) * cell_height
     return x1, y1, x2, y2
 
 
