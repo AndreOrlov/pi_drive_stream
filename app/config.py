@@ -129,8 +129,14 @@ class OverlayConfig(BaseModel):
             },
             "motion_detector": {
                 "enabled": True,
-                "sensitivity": 30,
-                "min_area": 500,
+                # ЭТАП 1: Визуализация сетки
+                "grid_width": 24,
+                "grid_height": 18,
+                "show_grid_lines": True,
+                "grid_line_color": [0, 255, 0],
+                "grid_line_thickness": 1,
+                "show_cell_info": True,
+                "show_stats": True,
             },
         },
         description="Конфигурация плагинов оверлеев",
