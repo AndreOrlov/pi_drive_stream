@@ -1,6 +1,8 @@
 """Слой детектора движения."""
 
 import asyncio
+import concurrent.futures
+import logging
 from typing import Tuple
 import cv2
 import numpy as np
@@ -8,6 +10,8 @@ import numpy as np
 from app.overlay.layers.base import Layer
 from app.overlay.motion.grid_utils import calculate_cell_size, get_cell_bounds
 from app.overlay.plugin_registry import register_layer
+
+logger = logging.getLogger(__name__)
 
 
 @register_layer("motion_detector")
@@ -94,7 +98,11 @@ class MotionDetectorLayer(Layer):
         # Детектор (только для stage 2)
         self.detector = None
         self.motion_matrix = None
-        self._detection_task = None
+        self._detection_future: concurrent.futures.Future | None = None
+        self._executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="motion_detector_"
+        )
 
         if self.stage >= 2:
             from app.overlay.motion.grid_mean_detector import GridMeanDetector
@@ -166,11 +174,21 @@ class MotionDetectorLayer(Layer):
             cell_w: Ширина ячейки в пикселях
             cell_h: Высота ячейки в пикселях
         """
-        # 1. Запустить детекцию асинхронно
-        if self._detection_task is None or self._detection_task.done():
-            self._detection_task = asyncio.create_task(
-                self._detect_motion_async(frame.copy())
-            )
+        # 1. Запустить детекцию в executor (освобождает GIL для OpenCV/NumPy)
+        if self._detection_future is None or self._detection_future.done():
+            try:
+                loop = asyncio.get_running_loop()
+                # Запускаем детекцию в executor (эквивалент asyncio.to_thread)
+                self._detection_future = loop.run_in_executor(
+                    self._executor,
+                    self.detector.detect,
+                    frame.copy()
+                )
+                # Добавляем callback для обновления motion_matrix
+                self._detection_future.add_done_callback(self._on_detection_complete)
+            except RuntimeError:
+                # Нет running loop - пропускаем детекцию
+                logger.debug("No running event loop, skipping motion detection")
 
         # 2. Отрисовать квадратики движения
         if self.motion_matrix is not None:
@@ -184,14 +202,17 @@ class MotionDetectorLayer(Layer):
         if self.show_stats:
             self._draw_stats_stage2(frame, cell_w, cell_h)
 
-    async def _detect_motion_async(self, frame: np.ndarray) -> None:
+    def _on_detection_complete(self, future: concurrent.futures.Future) -> None:
         """
-        Асинхронная детекция движения.
+        Callback для обновления результата детекции.
 
         Args:
-            frame: Кадр для анализа
+            future: Future с результатом детекции
         """
-        self.motion_matrix = await asyncio.to_thread(self.detector.detect, frame)
+        try:
+            self.motion_matrix = future.result()
+        except Exception as e:
+            logger.error(f"Motion detection error: {e}", exc_info=True)
 
     def _draw_motion_boxes(self, frame: np.ndarray, cell_w: int, cell_h: int) -> None:
         """
@@ -391,11 +412,13 @@ class MotionDetectorLayer(Layer):
         line_height = 18
         padding = 10
 
-        # Вычисляем размер фона
-        max_width = max(
+        # Вычисляем размер фона с правильными отступами
+        max_text_width = max(
             cv2.getTextSize(line, self.font, font_scale, thickness)[0][0] for line in lines
         )
 
+        # Ширина и высота бокса (с учетом внутренних отступов)
+        box_width = max_text_width + padding * 2
         box_height = len(lines) * line_height + padding * 2
 
         # Полупрозрачный фон
@@ -403,7 +426,7 @@ class MotionDetectorLayer(Layer):
         cv2.rectangle(
             overlay,
             (8, 8),
-            (max_width + padding * 2, box_height),
+            (8 + box_width, 8 + box_height),
             (0, 0, 0),
             -1,
         )
@@ -414,7 +437,7 @@ class MotionDetectorLayer(Layer):
         cv2.rectangle(
             frame,
             (8, 8),
-            (max_width + padding * 2, box_height),
+            (8 + box_width, 8 + box_height),
             border_color,
             1,
         )
@@ -433,3 +456,8 @@ class MotionDetectorLayer(Layer):
                 thickness,
                 cv2.LINE_AA,
             )
+
+    def __del__(self) -> None:
+        """Cleanup executor при удалении layer."""
+        if hasattr(self, '_executor'):
+            self._executor.shutdown(wait=False)

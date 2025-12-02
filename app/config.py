@@ -120,7 +120,7 @@ class OverlayConfig(BaseModel):
             },
             "telemetry": {
                 "enabled": True,
-                "position": [10, 30],
+                "position": [236, 30],
                 "font_scale": 0.7,
             },
             "warning": {
