@@ -85,6 +85,8 @@ class GridMeanDetector(BaseMotionDetector):
 
         if avg_brightness < self.min_brightness:
             # Слишком темный кадр - пропускаем детекцию
+            # НО обновляем _last_avg_brightness для корректного отслеживания освещения
+            self._last_avg_brightness = avg_brightness
             return np.zeros((self.grid_height, self.grid_width), dtype=np.uint8)
 
         # ============================================================
