@@ -3,7 +3,7 @@
 import asyncio
 import concurrent.futures
 import logging
-from typing import Tuple
+
 import cv2
 import numpy as np
 
@@ -34,12 +34,12 @@ class MotionDetectorLayer(Layer):
         threshold: float = 25.0,
         alpha: float = 0.02,
         # Визуализация движения (stage 2)
-        box_color: Tuple[int, int, int] = (0, 255, 0),
+        box_color: tuple[int, int, int] = (0, 255, 0),
         box_thickness: int = 2,
         box_fill_alpha: float = 0.3,
         # Визуализация сетки (stage 1)
         show_grid_lines: bool = True,
-        grid_line_color: Tuple[int, int, int] = (0, 255, 0),
+        grid_line_color: tuple[int, int, int] = (0, 255, 0),
         grid_line_thickness: int = 1,
         grid_line_alpha: float = 0.5,
         # UI
@@ -175,7 +175,7 @@ class MotionDetectorLayer(Layer):
             cell_h: Высота ячейки в пикселях
         """
         # 1. Запустить детекцию в executor (освобождает GIL для OpenCV/NumPy)
-        if self._detection_future is None or self._detection_future.done():
+        if self.detector is not None and (self._detection_future is None or self._detection_future.done()):
             try:
                 loop = asyncio.get_running_loop()
                 # Запускаем детекцию в executor (эквивалент asyncio.to_thread)
