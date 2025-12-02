@@ -134,8 +134,8 @@ class OverlayConfig(BaseModel):
                 "grid_width": 32,
                 "grid_height": 24,
                 # Детекция (stage 2)
-                "algorithm": "grid_mean",  # "grid_mean" | "grid_rms" | "frame_diff"
-                "threshold": 25.0,  # Базовый порог (RMS: 15.0, frame_diff: 20.0)
+                "algorithm": "grid_rms",  # "grid_mean" | "grid_rms" | "frame_diff"
+                "threshold": 45.0,  # Базовый порог (grid_mean: 25.0, RMS: 15.0, frame_diff: 20.0)
                 "alpha": 0.02,  # Базовая скорость обновления фона
                 "alpha_fast_multiplier": 5.0,  # Множитель для быстрого обновления (нет движения)
                 "alpha_slow_multiplier": 0.5,  # Множитель для медленного обновления (есть движение)
