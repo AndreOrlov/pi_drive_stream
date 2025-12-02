@@ -134,7 +134,7 @@ class OverlayConfig(BaseModel):
                 "grid_height": 18,
                 "show_grid_lines": True,
                 "grid_line_color": [0, 255, 0],
-                "grid_line_thickness": 2,
+                "grid_line_thickness": 1,
                 "show_cell_info": True,
                 "show_stats": True,
             },
