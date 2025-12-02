@@ -129,11 +129,10 @@ class OverlayConfig(BaseModel):
             },
             "motion_detector": {
                 "enabled": True,
-                # ЭТАП 1: Визуализация сетки
                 "grid_width": 32,
                 "grid_height": 24,
                 "show_grid_lines": True,
-                "grid_line_color": [0, 255, 0],
+                "grid_line_color": [0, 255, 0], # Зеленый
                 "grid_line_thickness": 1,
                 "show_cell_info": True,
                 "show_stats": True,
