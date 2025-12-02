@@ -1,6 +1,7 @@
 """Модуль детекторов движения."""
 
 from app.overlay.motion.base import BaseMotionDetector
+from app.overlay.motion.frame_diff_detector import FrameDiffDetector
 from app.overlay.motion.grid_mean_detector import GridMeanDetector
 from app.overlay.motion.grid_rms_detector import GridRMSDetector
 from app.overlay.motion.grid_utils import (
@@ -17,5 +18,6 @@ __all__ = [
     "BaseMotionDetector",
     "GridMeanDetector",
     "GridRMSDetector",
+    "FrameDiffDetector",
     "PerformanceOptimizedDetector",
 ]

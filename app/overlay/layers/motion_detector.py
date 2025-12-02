@@ -138,6 +138,7 @@ class MotionDetectorLayer(Layer):
         )
 
         if self.stage >= 2:
+            from app.overlay.motion.frame_diff_detector import FrameDiffDetector
             from app.overlay.motion.grid_mean_detector import GridMeanDetector
             from app.overlay.motion.grid_rms_detector import GridRMSDetector
             from app.overlay.motion.performance import PerformanceOptimizedDetector
@@ -167,8 +168,15 @@ class MotionDetectorLayer(Layer):
                     min_brightness=min_brightness,
                     max_change_threshold=max_change_threshold,
                 )
+            elif algorithm == "frame_diff":
+                base_detector = FrameDiffDetector(
+                    grid_width=grid_width,
+                    grid_height=grid_height,
+                    threshold=threshold,
+                    min_brightness=min_brightness,
+                )
             else:
-                raise ValueError(f"Unknown algorithm: {algorithm}. Supported: 'grid_mean', 'grid_rms'")
+                raise ValueError(f"Unknown algorithm: {algorithm}. Supported: 'grid_mean', 'grid_rms', 'frame_diff'")
 
             # Оборачиваем в оптимизатор производительности
             self.detector = PerformanceOptimizedDetector(
@@ -453,7 +461,7 @@ class MotionDetectorLayer(Layer):
         motion_percent = (motion_count / total_cells) * 100 if total_cells > 0 else 0
 
         # Название алгоритма
-        algo_name = {"grid_mean": "Grid Mean", "grid_rms": "Grid RMS"}.get(
+        algo_name = {"grid_mean": "Grid Mean", "grid_rms": "Grid RMS", "frame_diff": "Frame Diff"}.get(
             self.algorithm, self.algorithm.title()
         )
 
