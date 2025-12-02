@@ -129,12 +129,24 @@ class OverlayConfig(BaseModel):
             },
             "motion_detector": {
                 "enabled": True,
+                "stage": 2,  # 1 = только сетка, 2 = детекция движения
+                # Сетка
                 "grid_width": 32,
                 "grid_height": 24,
-                "show_grid_lines": True,
-                "grid_line_color": [0, 255, 0], # Зеленый
+                # Детекция (stage 2)
+                "threshold": 25.0,  # Порог детекции
+                "alpha": 0.02,  # Скорость обновления фона
+                # Визуализация движения (stage 2)
+                "box_color": [0, 255, 0],  # Зеленый
+                "box_thickness": 2,
+                "box_fill_alpha": 0.3,
+                # Визуализация сетки (stage 1)
+                "show_grid_lines": False,  # Отключить на stage 2
+                "grid_line_color": [128, 128, 128],  # Серый
                 "grid_line_thickness": 1,
-                "show_cell_info": True,
+                "grid_line_alpha": 0.3,
+                # UI
+                "show_cell_info": False,
                 "show_stats": True,
             },
         },
