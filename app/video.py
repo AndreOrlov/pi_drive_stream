@@ -87,6 +87,7 @@ class CameraVideoTrack(MediaStreamTrack):
         super().__init__()
         self._start_time: float | None = None
         self._frame_count = 0
+        self._recv_lock = asyncio.Lock()
 
         self._use_picamera2 = False
         self._picam2: Picamera2 | None = None  # type: ignore[name-defined]
@@ -156,57 +157,58 @@ class CameraVideoTrack(MediaStreamTrack):
                 logger.info("OSD renderer initialized with %d layers", len(layers))
 
     async def recv(self) -> VideoFrame:
-        try:
-            # Initialize start time on first frame
-            if self._start_time is None:
-                self._start_time = time.time()
+        async with self._recv_lock:
+            try:
+                # Initialize start time on first frame
+                if self._start_time is None:
+                    self._start_time = time.time()
 
-            # Calculate timestamp based on elapsed time
-            elapsed = time.time() - self._start_time
-            pts = int(elapsed * config.video.pts_clock_hz)
-            time_base = fractions.Fraction(1, config.video.pts_clock_hz)
+                # Calculate timestamp based on elapsed time
+                elapsed = time.time() - self._start_time
+                pts = int(elapsed * config.video.pts_clock_hz)
+                time_base = fractions.Fraction(1, config.video.pts_clock_hz)
 
-            self._frame_count += 1
+                self._frame_count += 1
 
-            # Capture frame
-            if self._use_picamera2 and self._picam2 is not None:
-                frame = self._picam2.capture_array()
-            else:
-                ret, frame = (False, None)
-                if self._cap is not None:
-                    ret, frame = self._cap.read()
-                if not ret or frame is None:
-                    frame = np.zeros(
-                        (config.video.height, config.video.width, 3), dtype=np.uint8
-                    )
+                # Capture frame
+                if self._use_picamera2 and self._picam2 is not None:
+                    frame = self._picam2.capture_array()
                 else:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frame = cv2.resize(frame, (config.video.width, config.video.height))
+                    ret, frame = (False, None)
+                    if self._cap is not None:
+                        ret, frame = self._cap.read()
+                    if not ret or frame is None:
+                        frame = np.zeros(
+                            (config.video.height, config.video.width, 3), dtype=np.uint8
+                        )
+                    else:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        frame = cv2.resize(frame, (config.video.width, config.video.height))
 
-                    # Применяем трансформации для OpenCV
-                    if config.video.flip_horizontal and config.video.flip_vertical:
-                        frame = cv2.flip(frame, -1)  # оба направления
-                    elif config.video.flip_vertical:
-                        frame = cv2.flip(frame, 0)  # только вертикально
-                    elif config.video.flip_horizontal:
-                        frame = cv2.flip(frame, 1)  # только горизонтально
+                        # Применяем трансформации для OpenCV
+                        if config.video.flip_horizontal and config.video.flip_vertical:
+                            frame = cv2.flip(frame, -1)  # оба направления
+                        elif config.video.flip_vertical:
+                            frame = cv2.flip(frame, 0)  # только вертикально
+                        elif config.video.flip_horizontal:
+                            frame = cv2.flip(frame, 1)  # только горизонтально
 
-            # Отрисовка OSD
-            if self._overlay_renderer is not None:
-                self._overlay_renderer.draw(frame)
+                # Отрисовка OSD
+                if self._overlay_renderer is not None:
+                    self._overlay_renderer.draw(frame)
 
-            # Create VideoFrame
-            video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
-            video_frame.pts = pts
-            video_frame.time_base = time_base
+                # Create VideoFrame
+                video_frame = VideoFrame.from_ndarray(frame, format="rgb24")
+                video_frame.pts = pts
+                video_frame.time_base = time_base
 
-            # Control frame rate
-            await asyncio.sleep(1 / config.video.fps)
+                # Control frame rate
+                await asyncio.sleep(1 / config.video.fps)
 
-            return video_frame
-        except Exception as e:
-            logger.error(f"Error in CameraVideoTrack.recv: {e}")
-            raise
+                return video_frame
+            except Exception as e:
+                logger.error(f"Error in CameraVideoTrack.recv: {e}")
+                raise
 
     def stop(self) -> None:
         """
