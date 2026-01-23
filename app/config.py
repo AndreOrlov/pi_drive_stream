@@ -120,7 +120,7 @@ class OverlayConfig(BaseModel):
             },
             "telemetry": {
                 "enabled": True,
-                "position": [10, 30],
+                "position": [236, 30],
                 "font_scale": 0.7,
             },
             "warning": {
@@ -129,8 +129,36 @@ class OverlayConfig(BaseModel):
             },
             "motion_detector": {
                 "enabled": True,
-                "sensitivity": 30,
-                "min_area": 500,
+                "stage": 2,  # 1 = только сетка, 2 = детекция движения
+                # Сетка
+                "grid_width": 32,
+                "grid_height": 24,
+                # Детекция (stage 2)
+                "algorithm": "grid_rms",  # "grid_mean" | "grid_rms" | "frame_diff"
+                "threshold": 45.0,  # Базовый порог (grid_mean: 25.0, RMS: 15.0, frame_diff: 20.0)
+                "alpha": 0.02,  # Базовая скорость обновления фона
+                "alpha_fast_multiplier": 5.0,  # Множитель для быстрого обновления (нет движения)
+                "alpha_slow_multiplier": 0.5,  # Множитель для медленного обновления (есть движение)
+                "use_adaptive_threshold": True,  # Адаптивный порог на основе std
+                "min_brightness": 10.0,  # Минимальная яркость для детекции
+                "max_change_threshold": 200.0,  # Порог резкого изменения освещения
+                # Производительность
+                "max_detection_fps": 15,  # Максимальный FPS детекции (0 = без ограничений)
+                "skip_frames": 0,  # Пропускать N кадров между детекциями
+                "enable_profiling": True,  # Включить профилирование производительности
+                "show_performance": True,  # Показывать статистику производительности на экране
+                # Визуализация движения (stage 2)
+                "box_color": [0, 255, 0],  # Зеленый
+                "box_thickness": 1,
+                "box_fill_alpha": 0,  # Без заливки, только рамки
+                # Визуализация сетки (stage 1)
+                "show_grid_lines": False,  # Отключить на stage 2
+                "grid_line_color": [128, 128, 128],  # Серый
+                "grid_line_thickness": 1,
+                "grid_line_alpha": 0.3,
+                # UI
+                "show_cell_info": False,
+                "show_stats": True,
             },
         },
         description="Конфигурация плагинов оверлеев",

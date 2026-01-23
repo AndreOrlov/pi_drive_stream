@@ -7,7 +7,8 @@ Remote-controlled car with video streaming based on Raspberry Pi 5.
 - **Low-latency video streaming** via WebRTC
 - **Real-time control** over WebSocket
 - **Camera control** with D-Pad interface (pan/tilt servos ready)
-- **OSD (On-Screen Display)** — modular overlay system with crosshair, telemetry, and warnings
+- **Motion detection** — 3 algorithms (Frame Diff, Grid Mean, Grid RMS) with adaptive thresholds
+- **OSD (On-Screen Display)** — modular overlay system with crosshair, telemetry, warnings, and motion detection
 - **Emergency stop** functionality
 - **Centralized configuration** system with validation
 - **Responsive design** — mobile-friendly interface (Tailwind CSS)
@@ -475,6 +476,142 @@ The plugin will be automatically discovered and loaded on startup.
 - **Hot-reload**: Restart server to load new plugins
 
 For more details, see [`PLAN_OSD.md`](PLAN_OSD.md).
+
+## Motion Detection System
+
+Real-time motion detection with grid-based algorithms. The system divides the video frame into a grid and detects changes in each cell.
+
+### Supported Algorithms
+
+Three algorithms available, each with different trade-offs:
+
+| Algorithm      | Speed       | Accuracy         | Noise Immunity | Lighting Adapt | Use Case          |
+|----------------|-------------|------------------|----------------|----------------|-------------------|
+| **Frame Diff** | ⚡⚡⚡ Fastest | ⭐ Basic         | ⚠️ Low          | ❌ No          | Testing/Reference |
+| **Grid Mean**  | ⚡⚡ Fast     | ⭐⭐⭐ Good       | ✅ Good        | ✅ Yes          | **Recommended**   |
+| **Grid RMS**   | ⚡ Moderate  | ⭐⭐⭐⭐ Excellent| ✅✅ Excellent  | ✅ Yes          | High Precision    |
+
+**Recommended thresholds:**
+- Frame Diff: `threshold: 20.0`
+- Grid Mean: `threshold: 25.0` (default)
+- Grid RMS: `threshold: 15.0`
+
+### Configuration
+
+Enable motion detection in `app/config.py`:
+
+```python
+"motion_detector": {
+    "enabled": True,
+    "stage": 2,  # 1 = grid only, 2 = detection
+
+    # Grid setup
+    "grid_width": 32,   # Number of columns
+    "grid_height": 24,  # Number of rows
+
+    # Algorithm selection
+    "algorithm": "grid_mean",  # "grid_mean" | "grid_rms" | "frame_diff"
+    "threshold": 25.0,  # Detection threshold
+
+    # Background adaptation (grid_mean, grid_rms only)
+    "alpha": 0.02,  # Base background update speed
+    "alpha_fast_multiplier": 5.0,  # Fast update (no motion)
+    "alpha_slow_multiplier": 0.5,  # Slow update (motion detected)
+    "use_adaptive_threshold": True,  # Dynamic threshold based on std
+
+    # Edge case handling
+    "min_brightness": 10.0,  # Ignore dark frames
+    "max_change_threshold": 200.0,  # Auto-reset on sudden lighting change
+
+    # Performance
+    "max_detection_fps": 15,  # Limit detection frequency
+    "skip_frames": 0,  # Skip N frames between detections
+    "enable_profiling": True,  # Collect performance stats
+
+    # Visualization
+    "box_color": [0, 255, 0],  # Green boxes
+    "box_thickness": 1,
+    "box_fill_alpha": 0.0,  # No fill, outlines only
+    "show_stats": True,  # Display statistics
+    "show_performance": True,  # Show FPS/timing info
+}
+```
+
+### Algorithm Comparison
+
+**Frame Diff (Simple)**
+- ✅ Fastest algorithm
+- ✅ Instant detection
+- ⚠️ Sensitive to camera shake
+- ⚠️ Many false positives
+- ❌ No lighting adaptation
+- **Best for:** Testing, stable cameras
+
+**Grid Mean (Balanced)** ⭐ Recommended
+- ✅ Fast and accurate
+- ✅ Two-speed background update
+- ✅ Adaptive threshold
+- ✅ Good noise immunity
+- ✅ Handles lighting changes
+- **Best for:** General use, production
+
+**Grid RMS (Precise)**
+- ✅ Most accurate
+- ✅ Excellent noise filtering
+- ✅ Best for complex scenes
+- ⚠️ Slightly slower
+- ✅ Adaptive to lighting
+- **Best for:** High precision requirements
+
+### Features
+
+**Smart Background Adaptation:**
+- Fast update when no motion (adapts to lighting changes)
+- Slow update when motion detected (preserves moving objects)
+- Automatic reset on sudden lighting changes
+
+**Edge Case Handling:**
+- Ignores dark frames (below `min_brightness`)
+- Handles sudden lighting changes (>200 brightness units)
+- Adaptive threshold based on scene variance
+
+**Performance Optimization:**
+- FPS limiting (`max_detection_fps`)
+- Frame skipping (`skip_frames`)
+- Profiling and statistics
+- Non-blocking detection (runs in thread pool)
+
+### Testing Results
+
+Tested on both Desktop (macOS, 640x480) and Raspberry Pi 4 (640x480):
+
+- **Grid Mean:** ~8ms per frame, ~125 FPS theoretical
+- **Grid RMS:** ~10ms per frame, ~100 FPS theoretical
+- **Frame Diff:** ~6ms per frame, ~165 FPS theoretical
+
+With `max_detection_fps: 15`, actual FPS is limited to 15 with ~80% frames skipped for efficiency.
+
+### Troubleshooting
+
+**Motion not detected:**
+- Check `threshold` — lower it (e.g., 15.0)
+- Enable `show_stats` to see current detection values
+- Verify `min_brightness` if scene is dark
+- Try `algorithm: "frame_diff"` for maximum sensitivity
+
+**Too many false positives:**
+- Increase `threshold` (e.g., 30.0)
+- Use `grid_rms` instead of `frame_diff`
+- Enable `use_adaptive_threshold: True`
+- Increase `skip_frames` to reduce sensitivity
+
+**Performance issues:**
+- Lower `max_detection_fps` (e.g., 10)
+- Increase `skip_frames` (e.g., 2)
+- Reduce grid size (e.g., `24x18` instead of `32x24`)
+- Use `grid_mean` instead of `grid_rms`
+
+For detailed implementation notes, see [`PLAN_MOTION_DETECTION.md`](PLAN_MOTION_DETECTION.md).
 
 ## Development
 

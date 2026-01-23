@@ -3,8 +3,12 @@ Camera servo control via pigpio.
 Manages pan/tilt servos for camera positioning.
 """
 
+import logging
+
 from app.config import config
 from app.messages import CameraCommand
+
+logger = logging.getLogger(__name__)
 
 try:
     import pigpio  # type: ignore[import-not-found]
@@ -41,33 +45,45 @@ async def apply_camera_command(cmd: CameraCommand) -> None:
     if not PIGPIO_AVAILABLE:
         return
 
-    cfg = config.camera
-    pi = _get_pi()  # Получаем экземпляр pigpio
+    try:
+        cfg = config.camera
+        pi = _get_pi()  # Получаем экземпляр pigpio
 
-    # Применяем инверсию если нужно
-    pan_value = -cmd.pan if cfg.invert_pan else cmd.pan
-    tilt_value = -cmd.tilt if cfg.invert_tilt else cmd.tilt
+        # Применяем инверсию если нужно
+        pan_value = -cmd.pan if cfg.invert_pan else cmd.pan
+        tilt_value = -cmd.tilt if cfg.invert_tilt else cmd.tilt
 
-    # Преобразование в углы серво с учетом конфига
-    pan_angle = int((pan_value + 1.0) / 2.0 * 180)
-    tilt_angle = int((tilt_value + 1.0) / 2.0 * 180)
+        # Преобразование в углы серво с учетом конфига
+        pan_angle = int((pan_value + 1.0) / 2.0 * 180)
+        tilt_angle = int((tilt_value + 1.0) / 2.0 * 180)
 
-    # Преобразование в PWM импульсы (мкс)
-    pan_pulse = cfg.servo_min_pulse + (pan_angle / 180.0) * (
-        cfg.servo_max_pulse - cfg.servo_min_pulse
-    )
-    tilt_pulse = cfg.servo_min_pulse + (tilt_angle / 180.0) * (
-        cfg.servo_max_pulse - cfg.servo_min_pulse
-    )
-
-    # Отправка команд на сервоприводы
-    pi.set_servo_pulsewidth(cfg.pan_gpio_pin, pan_pulse)
-    pi.set_servo_pulsewidth(cfg.tilt_gpio_pin, tilt_pulse)
-
-    if cfg.enable_logging:
-        print(
-            f"[CAMERA] pan={cmd.pan:.2f} ({pan_angle}°, {pan_pulse:.0f}μs), tilt={cmd.tilt:.2f} ({tilt_angle}°, {tilt_pulse:.0f}μs)"
+        # Преобразование в PWM импульсы (мкс)
+        pan_pulse = int(
+            cfg.servo_min_pulse
+            + (pan_angle / 180.0) * (cfg.servo_max_pulse - cfg.servo_min_pulse)
         )
+        tilt_pulse = int(
+            cfg.servo_min_pulse
+            + (tilt_angle / 180.0) * (cfg.servo_max_pulse - cfg.servo_min_pulse)
+        )
+
+        # Отправка команд на сервоприводы
+        pi.set_servo_pulsewidth(cfg.pan_gpio_pin, pan_pulse)
+        pi.set_servo_pulsewidth(cfg.tilt_gpio_pin, tilt_pulse)
+
+        if cfg.enable_logging:
+            print(
+                f"[CAMERA] pan={cmd.pan:.2f} ({pan_angle}°, {pan_pulse:.0f}μs), "
+                f"tilt={cmd.tilt:.2f} ({tilt_angle}°, {tilt_pulse:.0f}μs)"
+            )
+
+    except RuntimeError as e:
+        # Логируем ошибку, но не роняем приложение
+        logger.error("Failed to control camera servos: %s", e)
+        # Приложение продолжает работать - пользователь может управлять другими функциями
+    except Exception as e:
+        # Перехватываем любые другие ошибки (например, проблемы с GPIO)
+        logger.error("Unexpected error in camera servo control: %s", e)
 
 
 def cleanup_servo():

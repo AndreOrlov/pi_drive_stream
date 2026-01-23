@@ -76,8 +76,10 @@ let CAMERA_STEP = 0.1;  // дискретный шаг
 let CAMERA_SPEED = 0.05;  // скорость плавного движения
 let CAMERA_UPDATE_INTERVAL = 100;  // мс (10 Hz)
 let CAMERA_HOLD_DELAY = 200;  // задержка перед плавным движением
-let CAMERA_MIN = -1.0;
-let CAMERA_MAX = 1.0;
+let CAMERA_MIN_PAN = -1.0;
+let CAMERA_MAX_PAN = 1.0;
+let CAMERA_MIN_TILT = -1.0;
+let CAMERA_MAX_TILT = 1.0;
 
 let cameraMoveInterval = null;
 
@@ -91,8 +93,10 @@ async function loadConfig() {
     CAMERA_SPEED = cfg.camera.speed;
     CAMERA_UPDATE_INTERVAL = cfg.camera.update_interval_ms;
     CAMERA_HOLD_DELAY = cfg.camera.hold_delay_ms;
-    CAMERA_MIN = Math.min(cfg.camera.min_pan, cfg.camera.min_tilt);
-    CAMERA_MAX = Math.max(cfg.camera.max_pan, cfg.camera.max_tilt);
+    CAMERA_MIN_PAN = cfg.camera.min_pan;
+    CAMERA_MAX_PAN = cfg.camera.max_pan;
+    CAMERA_MIN_TILT = cfg.camera.min_tilt;
+    CAMERA_MAX_TILT = cfg.camera.max_tilt;
 
     console.log('[Config] Loaded:', cfg);
   } catch (err) {
@@ -110,8 +114,8 @@ function sendCamera(pan, tilt) {
 }
 
 function moveCamera(panDelta, tiltDelta) {
-  currentPan = Math.max(CAMERA_MIN, Math.min(CAMERA_MAX, currentPan + panDelta));
-  currentTilt = Math.max(CAMERA_MIN, Math.min(CAMERA_MAX, currentTilt + tiltDelta));
+  currentPan = Math.max(CAMERA_MIN_PAN, Math.min(CAMERA_MAX_PAN, currentPan + panDelta));
+  currentTilt = Math.max(CAMERA_MIN_TILT, Math.min(CAMERA_MAX_TILT, currentTilt + tiltDelta));
   sendCamera(currentPan, currentTilt);
 }
 
