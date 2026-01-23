@@ -71,13 +71,13 @@ def _calculate_motor_powers(vx: float, steer: float) -> tuple[float, float]:
 
     Args:
         vx: Скорость вперед/назад [-1..1]
-        steer: Поворот влево/вправо [-1..1]
+        steer: Поворот влево/вправо [-1..1], где <0 влево, >0 вправо
 
     Returns:
         (left_power, right_power) в диапазоне [-1..1]
     """
-    left_power = vx - steer
-    right_power = vx + steer
+    left_power = vx + steer
+    right_power = vx - steer
 
     # Нормализация (если вышли за пределы [-1, 1])
     max_abs = max(abs(left_power), abs(right_power))
@@ -169,57 +169,34 @@ async def apply_drive_command(cmd: DriveCommand) -> None:
         # Преобразование команды в мощность сторон
         left_power, right_power = _calculate_motor_powers(cmd.vx, cmd.steer)
 
-        # ЭТАП 3: Разрешаем движение вперед и назад (vx != 0, steer == 0)
-        if cmd.vx != 0 and cmd.steer == 0:
-            # Применение к левой стороне
-            _set_motor_side(
-                cfg.left_in1,
-                cfg.left_in2,
-                cfg.left_pwm1,
-                cfg.left_in3,
-                cfg.left_in4,
-                cfg.left_pwm2,
-                left_power,
-                cfg.invert_left,
-            )
+        # ЭТАП 5: Все направления разблокированы
+        # Применение к левой стороне
+        _set_motor_side(
+            cfg.left_in1,
+            cfg.left_in2,
+            cfg.left_pwm1,
+            cfg.left_in3,
+            cfg.left_in4,
+            cfg.left_pwm2,
+            left_power,
+            cfg.invert_left,
+        )
 
-            # Применение к правой стороне
-            _set_motor_side(
-                cfg.right_in1,
-                cfg.right_in2,
-                cfg.right_pwm1,
-                cfg.right_in3,
-                cfg.right_in4,
-                cfg.right_pwm2,
-                right_power,
-                cfg.invert_right,
-            )
+        # Применение к правой стороне
+        _set_motor_side(
+            cfg.right_in1,
+            cfg.right_in2,
+            cfg.right_pwm1,
+            cfg.right_in3,
+            cfg.right_in4,
+            cfg.right_pwm2,
+            right_power,
+            cfg.invert_right,
+        )
 
-            if cfg.enable_logging:
-                print(
-                    f"[MOTOR] vx={cmd.vx:.2f}, steer={cmd.steer:.2f} -> L={left_power:.2f}, R={right_power:.2f}"
-                )
-        else:
-            # Стоп (любые другие команды на этапе 2)
-            _set_motor_side(
-                cfg.left_in1,
-                cfg.left_in2,
-                cfg.left_pwm1,
-                cfg.left_in3,
-                cfg.left_in4,
-                cfg.left_pwm2,
-                0.0,
-                cfg.invert_left,
-            )
-            _set_motor_side(
-                cfg.right_in1,
-                cfg.right_in2,
-                cfg.right_pwm1,
-                cfg.right_in3,
-                cfg.right_in4,
-                cfg.right_pwm2,
-                0.0,
-                cfg.invert_right,
+        if cfg.enable_logging:
+            print(
+                f"[MOTOR] vx={cmd.vx:.2f}, steer={cmd.steer:.2f} -> L={left_power:.2f}, R={right_power:.2f}"
             )
 
     except RuntimeError as e:
