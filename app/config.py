@@ -43,9 +43,9 @@ class VideoConfig(BaseModel):
 
     # Трансформации изображения
     flip_horizontal: bool = Field(
-        True, description="Горизонтальное отражение (зеркало)"
+        False, description="Горизонтальное отражение (зеркало)"
     )
-    flip_vertical: bool = Field(True, description="Вертикальное отражение (переворот)")
+    flip_vertical: bool = Field(False, description="Вертикальное отражение (переворот)")
 
 
 class CameraConfig(BaseModel):
@@ -88,12 +88,12 @@ class CameraConfig(BaseModel):
     )
 
     # Инверсия осей
-    invert_pan: bool = Field(False, description="Инвертировать направление pan")
-    invert_tilt: bool = Field(False, description="Инвертировать направление tilt")
+    invert_pan: bool = Field(True, description="Инвертировать направление pan")
+    invert_tilt: bool = Field(True, description="Инвертировать направление tilt")
 
     # Настройки сервоприводов (для будущей реализации)
-    pan_gpio_pin: int = Field(17, ge=0, description="GPIO пин для pan сервопривода")
-    tilt_gpio_pin: int = Field(18, ge=0, description="GPIO пин для tilt сервопривода")
+    pan_gpio_pin: int = Field(7, ge=0, description="GPIO пин для pan сервопривода")
+    tilt_gpio_pin: int = Field(6, ge=0, description="GPIO пин для tilt сервопривода")
     servo_min_pulse: int = Field(
         1000, ge=500, le=1500, description="Минимальная длительность импульса (мкс)"
     )
