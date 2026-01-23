@@ -107,6 +107,33 @@ class CameraConfig(BaseModel):
     )
 
 
+class MotorConfig(BaseModel):
+    """Настройки управления DC моторами"""
+
+    # Левая сторона (2 мотора)
+    left_in1: int = Field(20, description="Левый мотор 1 - направление IN1")
+    left_in2: int = Field(21, description="Левый мотор 1 - направление IN2")
+    left_pwm1: int = Field(0, description="Левый мотор 1 - скорость PWM")
+    left_in3: int = Field(22, description="Левый мотор 2 - направление IN3")
+    left_in4: int = Field(23, description="Левый мотор 2 - направление IN4")
+    left_pwm2: int = Field(1, description="Левый мотор 2 - скорость PWM")
+
+    # Правая сторона (2 мотора)
+    right_in1: int = Field(24, description="Правый мотор 1 - направление IN1")
+    right_in2: int = Field(25, description="Правый мотор 1 - направление IN2")
+    right_pwm1: int = Field(12, description="Правый мотор 1 - скорость PWM (аппаратный)")
+    right_in3: int = Field(26, description="Правый мотор 2 - направление IN3")
+    right_in4: int = Field(27, description="Правый мотор 2 - направление IN4")
+    right_pwm2: int = Field(13, description="Правый мотор 2 - скорость PWM (аппаратный)")
+
+    # Параметры PWM
+    pwm_frequency: int = Field(100, description="Частота PWM (Hz)")
+    pwm_range: int = Field(100, description="Диапазон duty cycle (0-100)")
+
+    # Логирование
+    enable_logging: bool = Field(True, description="Логировать команды моторов")
+
+
 class OverlayConfig(BaseModel):
     """Настройки OSD (On-Screen Display)"""
 
@@ -172,6 +199,7 @@ class Config(BaseModel):
     drive: DriveConfig = Field(default_factory=DriveConfig)
     video: VideoConfig = Field(default_factory=VideoConfig)
     camera: CameraConfig = Field(default_factory=CameraConfig)
+    motor: MotorConfig = Field(default_factory=MotorConfig)
     overlay: OverlayConfig = Field(default_factory=OverlayConfig)
 
 

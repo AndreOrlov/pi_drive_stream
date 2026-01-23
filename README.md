@@ -372,8 +372,8 @@ pgrep pigpiod  # should return a process ID
 ```
 
 Check servo connections:
-- Pan servo → GPIO 17 (physical pin 11)
-- Tilt servo → GPIO 18 (physical pin 12)
+- Pan servo → GPIO 7 (physical pin 26)
+- Tilt servo → GPIO 6 (physical pin 31)
 - Verify power supply (servos need 5V, not 3.3V)
 - Common (brown/black wire) → GND
 - Power (red wire) → 5V

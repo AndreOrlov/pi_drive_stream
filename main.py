@@ -12,12 +12,14 @@ import sys
 
 from app.config import config
 from app.hw.servos import cleanup_servo
+from app.hw.motors import cleanup_motors
 from app.video import cleanup_camera
 
 
 def signal_handler(sig, frame):
     print("\n[SHUTDOWN] Cleaning up resources...")
     cleanup_servo()
+    cleanup_motors()
     cleanup_camera()
     sys.exit(0)
 
