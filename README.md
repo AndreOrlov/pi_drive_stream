@@ -62,6 +62,20 @@ sudo systemctl enable pigpiod
 sudo systemctl start pigpiod
 ```
 
+If you see `no permission to update GPIO` (for example when using GPIO0/1),
+run pigpiod with an allowed GPIO mask via a systemd override:
+```bash
+sudo systemctl edit pigpiod
+```
+```
+[Service]
+ExecStart=
+ExecStart=/usr/local/bin/pigpiod -x 0xFFFFFFFF
+```
+```bash
+sudo systemctl daemon-reload && sudo systemctl restart pigpiod
+```
+
 Verify pigpiod is running:
 ```bash
 sudo systemctl status pigpiod
@@ -347,6 +361,20 @@ Make sure the pigpiod daemon is running:
 
 ```bash
 sudo systemctl status pigpiod
+```
+
+If you get `no permission to update GPIO` (often on GPIO0/1), enable pigpiod
+startup with an allowed GPIO mask:
+```bash
+sudo systemctl edit pigpiod
+```
+```
+[Service]
+ExecStart=
+ExecStart=/usr/local/bin/pigpiod -x 0xFFFFFFFF
+```
+```bash
+sudo systemctl daemon-reload && sudo systemctl restart pigpiod
 ```
 
 If systemd service doesn't exist (installed from source):

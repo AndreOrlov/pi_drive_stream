@@ -133,6 +133,10 @@ class MotorConfig(BaseModel):
     # Логирование
     enable_logging: bool = Field(True, description="Логировать команды моторов")
 
+    # Инверсия направления
+    invert_left: bool = Field(False, description="Инвертировать направление левых моторов")
+    invert_right: bool = Field(True, description="Инвертировать направление правых моторов")
+
 
 class OverlayConfig(BaseModel):
     """Настройки OSD (On-Screen Display)"""

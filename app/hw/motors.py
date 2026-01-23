@@ -96,6 +96,7 @@ def _set_motor_side(
     in4: int,
     pwm2: int,
     power: float,
+    invert: bool = False,
 ) -> None:
     """
     Установить скорость и направление для одной стороны (2 мотора).
@@ -103,7 +104,8 @@ def _set_motor_side(
     Args:
         in1, in2, pwm1: Пины первого мотора
         in3, in4, pwm2: Пины второго мотора
-        power: Мощность [-1..1], знак определяет направление
+        power: Мощность [0..1] и направление (>0 вперед, <0 назад, =0 стоп)
+        invert: Инвертировать направление вращения (меняет полярность IN пинов)
     """
     if not PIGPIO_AVAILABLE or _pi is None:
         return
@@ -113,10 +115,18 @@ def _set_motor_side(
 
     if power > 0:
         # Вперед (ЭТАП 2: только это направление активно)
-        _pi.write(in1, 0)
-        _pi.write(in2, 1)
-        _pi.write(in3, 1)
-        _pi.write(in4, 0)
+        if invert:
+            # Инвертированное направление (меняем IN пины местами)
+            _pi.write(in1, 1)
+            _pi.write(in2, 0)
+            _pi.write(in3, 0)
+            _pi.write(in4, 1)
+        else:
+            # Нормальное направление
+            _pi.write(in1, 0)
+            _pi.write(in2, 1)
+            _pi.write(in3, 1)
+            _pi.write(in4, 0)
     elif power < 0:
         # Назад (ЭТАП 3: пока заблокировано)
         _pi.write(in1, 0)
@@ -163,6 +173,7 @@ async def apply_drive_command(cmd: DriveCommand) -> None:
                 cfg.left_in4,
                 cfg.left_pwm2,
                 left_power,
+                cfg.invert_left,
             )
 
             # Применение к правой стороне
@@ -174,6 +185,7 @@ async def apply_drive_command(cmd: DriveCommand) -> None:
                 cfg.right_in4,
                 cfg.right_pwm2,
                 right_power,
+                cfg.invert_right,
             )
 
             if cfg.enable_logging:
@@ -190,6 +202,7 @@ async def apply_drive_command(cmd: DriveCommand) -> None:
                 cfg.left_in4,
                 cfg.left_pwm2,
                 0.0,
+                cfg.invert_left,
             )
             _set_motor_side(
                 cfg.right_in1,
@@ -199,6 +212,7 @@ async def apply_drive_command(cmd: DriveCommand) -> None:
                 cfg.right_in4,
                 cfg.right_pwm2,
                 0.0,
+                cfg.invert_right,
             )
 
     except RuntimeError as e:
