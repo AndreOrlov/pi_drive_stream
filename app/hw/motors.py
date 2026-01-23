@@ -128,12 +128,19 @@ def _set_motor_side(
             _pi.write(in3, 1)
             _pi.write(in4, 0)
     elif power < 0:
-        # Назад (ЭТАП 3: пока заблокировано)
-        _pi.write(in1, 0)
-        _pi.write(in2, 0)
-        _pi.write(in3, 0)
-        _pi.write(in4, 0)
-        duty_cycle = 0
+        # Назад (ЭТАП 3: разблокировано)
+        if invert:
+            # Инвертированное направление назад (противоположно инвертированному вперед)
+            _pi.write(in1, 0)
+            _pi.write(in2, 1)
+            _pi.write(in3, 1)
+            _pi.write(in4, 0)
+        else:
+            # Нормальное направление назад (противоположно нормальному вперед)
+            _pi.write(in1, 1)
+            _pi.write(in2, 0)
+            _pi.write(in3, 0)
+            _pi.write(in4, 1)
     else:
         # Стоп
         _pi.write(in1, 0)
@@ -162,8 +169,8 @@ async def apply_drive_command(cmd: DriveCommand) -> None:
         # Преобразование команды в мощность сторон
         left_power, right_power = _calculate_motor_powers(cmd.vx, cmd.steer)
 
-        # ЭТАП 2: Разрешаем только движение вперед (vx > 0, steer == 0)
-        if cmd.vx > 0 and cmd.steer == 0:
+        # ЭТАП 3: Разрешаем движение вперед и назад (vx != 0, steer == 0)
+        if cmd.vx != 0 and cmd.steer == 0:
             # Применение к левой стороне
             _set_motor_side(
                 cfg.left_in1,
