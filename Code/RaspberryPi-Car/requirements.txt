@@ -1,0 +1,5 @@
+RPi.GPIO>=0.7.0
+Pillow>=8.0.0
+adafruit-circuitpython-ssd1306>=2.12.0
+adafruit-blinka>=8.0.0
+Adafruit-GPIO>=1.0.0
