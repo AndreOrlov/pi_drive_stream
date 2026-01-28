@@ -121,10 +121,14 @@ class MotorConfig(BaseModel):
     # Правая сторона (2 мотора)
     right_in1: int = Field(24, description="Правый мотор 1 - направление IN1")
     right_in2: int = Field(25, description="Правый мотор 1 - направление IN2")
-    right_pwm1: int = Field(12, description="Правый мотор 1 - скорость PWM (аппаратный)")
+    right_pwm1: int = Field(
+        12, description="Правый мотор 1 - скорость PWM (аппаратный)"
+    )
     right_in3: int = Field(26, description="Правый мотор 2 - направление IN3")
     right_in4: int = Field(27, description="Правый мотор 2 - направление IN4")
-    right_pwm2: int = Field(13, description="Правый мотор 2 - скорость PWM (аппаратный)")
+    right_pwm2: int = Field(
+        13, description="Правый мотор 2 - скорость PWM (аппаратный)"
+    )
 
     # Параметры PWM
     pwm_frequency: int = Field(100, description="Частота PWM (Hz)")
@@ -134,8 +138,12 @@ class MotorConfig(BaseModel):
     enable_logging: bool = Field(True, description="Логировать команды моторов")
 
     # Инверсия направления
-    invert_left: bool = Field(False, description="Инвертировать направление левых моторов")
-    invert_right: bool = Field(True, description="Инвертировать направление правых моторов")
+    invert_left: bool = Field(
+        False, description="Инвертировать направление левых моторов"
+    )
+    invert_right: bool = Field(
+        True, description="Инвертировать направление правых моторов"
+    )
 
 
 class OverlayConfig(BaseModel):

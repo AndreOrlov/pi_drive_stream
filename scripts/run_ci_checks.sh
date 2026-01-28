@@ -3,6 +3,11 @@
 
 set -e  # Остановка при первой ошибке
 
+# Активация виртуального окружения, если существует
+if [ -d ".venv" ]; then
+    source .venv/bin/activate
+fi
+
 echo "🔍 Running CI checks locally..."
 echo ""
 

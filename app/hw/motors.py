@@ -4,6 +4,7 @@ Manages 4 DC motors in tank drive configuration.
 """
 
 import logging
+
 from app.config import config
 from app.messages import DriveCommand
 
@@ -163,7 +164,7 @@ async def apply_drive_command(cmd: DriveCommand) -> None:
         return
 
     try:
-        pi = _get_pi()
+        _get_pi()  # Инициализация pigpio (если еще не инициализирован)
         cfg = config.motor
 
         # Преобразование команды в мощность сторон
