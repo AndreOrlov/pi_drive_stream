@@ -62,6 +62,20 @@ sudo systemctl enable pigpiod
 sudo systemctl start pigpiod
 ```
 
+If you see `no permission to update GPIO` (for example when using GPIO0/1),
+run pigpiod with an allowed GPIO mask via a systemd override:
+```bash
+sudo systemctl edit pigpiod
+```
+```
+[Service]
+ExecStart=
+ExecStart=/usr/local/bin/pigpiod -x 0xFFFFFFFF
+```
+```bash
+sudo systemctl daemon-reload && sudo systemctl restart pigpiod
+```
+
 Verify pigpiod is running:
 ```bash
 sudo systemctl status pigpiod
@@ -349,6 +363,20 @@ Make sure the pigpiod daemon is running:
 sudo systemctl status pigpiod
 ```
 
+If you get `no permission to update GPIO` (often on GPIO0/1), enable pigpiod
+startup with an allowed GPIO mask:
+```bash
+sudo systemctl edit pigpiod
+```
+```
+[Service]
+ExecStart=
+ExecStart=/usr/local/bin/pigpiod -x 0xFFFFFFFF
+```
+```bash
+sudo systemctl daemon-reload && sudo systemctl restart pigpiod
+```
+
 If systemd service doesn't exist (installed from source):
 
 ```bash
@@ -372,8 +400,8 @@ pgrep pigpiod  # should return a process ID
 ```
 
 Check servo connections:
-- Pan servo → GPIO 17 (physical pin 11)
-- Tilt servo → GPIO 18 (physical pin 12)
+- Pan servo → GPIO 7 (physical pin 26)
+- Tilt servo → GPIO 6 (physical pin 31)
 - Verify power supply (servos need 5V, not 3.3V)
 - Common (brown/black wire) → GND
 - Power (red wire) → 5V

@@ -119,8 +119,8 @@ invert_tilt: bool = False   # Инвертировать tilt
 
 #### Настройки GPIO (для Raspberry Pi)
 ```python
-pan_gpio_pin: int = 17              # GPIO пин для pan
-tilt_gpio_pin: int = 18             # GPIO пин для tilt
+pan_gpio_pin: int = 7               # GPIO пин для pan
+tilt_gpio_pin: int = 6              # GPIO пин для tilt
 servo_min_pulse: int = 1000         # Минимальная длительность импульса (мкс)
 servo_max_pulse: int = 2000         # Максимальная длительность импульса (мкс)
 ```

@@ -1,6 +1,11 @@
 #!/bin/bash
 # Автоматическое исправление проблем с кодом
 
+# Активация виртуального окружения, если существует
+if [ -d ".venv" ]; then
+    source .venv/bin/activate
+fi
+
 echo "🔧 Auto-fixing code issues..."
 echo ""
 

@@ -3,7 +3,7 @@ import time
 
 from app import event_bus
 from app.config import config
-from app.hw.motors_stub import apply_drive_command
+from app.hw.motors import apply_drive_command
 from app.messages import DriveCommand, DriveMode
 
 

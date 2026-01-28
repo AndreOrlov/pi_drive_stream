@@ -43,9 +43,9 @@ class VideoConfig(BaseModel):
 
     # Трансформации изображения
     flip_horizontal: bool = Field(
-        True, description="Горизонтальное отражение (зеркало)"
+        False, description="Горизонтальное отражение (зеркало)"
     )
-    flip_vertical: bool = Field(True, description="Вертикальное отражение (переворот)")
+    flip_vertical: bool = Field(False, description="Вертикальное отражение (переворот)")
 
 
 class CameraConfig(BaseModel):
@@ -88,12 +88,12 @@ class CameraConfig(BaseModel):
     )
 
     # Инверсия осей
-    invert_pan: bool = Field(False, description="Инвертировать направление pan")
-    invert_tilt: bool = Field(False, description="Инвертировать направление tilt")
+    invert_pan: bool = Field(True, description="Инвертировать направление pan")
+    invert_tilt: bool = Field(True, description="Инвертировать направление tilt")
 
     # Настройки сервоприводов (для будущей реализации)
-    pan_gpio_pin: int = Field(17, ge=0, description="GPIO пин для pan сервопривода")
-    tilt_gpio_pin: int = Field(18, ge=0, description="GPIO пин для tilt сервопривода")
+    pan_gpio_pin: int = Field(7, ge=0, description="GPIO пин для pan сервопривода")
+    tilt_gpio_pin: int = Field(6, ge=0, description="GPIO пин для tilt сервопривода")
     servo_min_pulse: int = Field(
         1000, ge=500, le=1500, description="Минимальная длительность импульса (мкс)"
     )
@@ -104,6 +104,45 @@ class CameraConfig(BaseModel):
     # Логирование
     enable_logging: bool = Field(
         True, description="Включить логирование команд управления камерой"
+    )
+
+
+class MotorConfig(BaseModel):
+    """Настройки управления DC моторами"""
+
+    # Левая сторона (2 мотора)
+    left_in1: int = Field(20, description="Левый мотор 1 - направление IN1")
+    left_in2: int = Field(21, description="Левый мотор 1 - направление IN2")
+    left_pwm1: int = Field(0, description="Левый мотор 1 - скорость PWM")
+    left_in3: int = Field(22, description="Левый мотор 2 - направление IN3")
+    left_in4: int = Field(23, description="Левый мотор 2 - направление IN4")
+    left_pwm2: int = Field(1, description="Левый мотор 2 - скорость PWM")
+
+    # Правая сторона (2 мотора)
+    right_in1: int = Field(24, description="Правый мотор 1 - направление IN1")
+    right_in2: int = Field(25, description="Правый мотор 1 - направление IN2")
+    right_pwm1: int = Field(
+        12, description="Правый мотор 1 - скорость PWM (аппаратный)"
+    )
+    right_in3: int = Field(26, description="Правый мотор 2 - направление IN3")
+    right_in4: int = Field(27, description="Правый мотор 2 - направление IN4")
+    right_pwm2: int = Field(
+        13, description="Правый мотор 2 - скорость PWM (аппаратный)"
+    )
+
+    # Параметры PWM
+    pwm_frequency: int = Field(100, description="Частота PWM (Hz)")
+    pwm_range: int = Field(100, description="Диапазон duty cycle (0-100)")
+
+    # Логирование
+    enable_logging: bool = Field(True, description="Логировать команды моторов")
+
+    # Инверсия направления
+    invert_left: bool = Field(
+        False, description="Инвертировать направление левых моторов"
+    )
+    invert_right: bool = Field(
+        True, description="Инвертировать направление правых моторов"
     )
 
 
@@ -135,7 +174,7 @@ class OverlayConfig(BaseModel):
                 "grid_height": 24,
                 # Детекция (stage 2)
                 "algorithm": "grid_rms",  # "grid_mean" | "grid_rms" | "frame_diff"
-                "threshold": 45.0,  # Базовый порог (grid_mean: 25.0, RMS: 15.0, frame_diff: 20.0)
+                "threshold": 95.0,  # Базовый порог (grid_mean: 25.0, RMS: 15.0, frame_diff: 20.0)
                 "alpha": 0.02,  # Базовая скорость обновления фона
                 "alpha_fast_multiplier": 5.0,  # Множитель для быстрого обновления (нет движения)
                 "alpha_slow_multiplier": 0.5,  # Множитель для медленного обновления (есть движение)
@@ -172,6 +211,7 @@ class Config(BaseModel):
     drive: DriveConfig = Field(default_factory=DriveConfig)
     video: VideoConfig = Field(default_factory=VideoConfig)
     camera: CameraConfig = Field(default_factory=CameraConfig)
+    motor: MotorConfig = Field(default_factory=MotorConfig)
     overlay: OverlayConfig = Field(default_factory=OverlayConfig)
 
 
